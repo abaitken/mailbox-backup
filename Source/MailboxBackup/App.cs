@@ -1,4 +1,10 @@
-﻿using System;
+﻿using MailKit;
+using MailKit.Net.Imap;
+using MailKit.Search;
+using MailKit.Security;
+using System;
+using System.IO;
+using System.Linq;
 
 namespace MailboxBackup
 {
@@ -10,7 +16,54 @@ namespace MailboxBackup
 
         internal int Run(string[] args)
         {
-            throw new NotImplementedException();
+            if(args.Length != 4)
+            {
+                Console.WriteLine("ERROR: Expected 4 arguments: username, password, server, output folder");
+                return ExitCodes.InvalidArguments;
+            }
+
+            var username = args[0];
+            var password = args[1];
+            var server = args[2];
+            var output = args[3];
+
+            if (!Directory.Exists(output))
+                Directory.CreateDirectory(output);
+
+            using (var client = new ImapClient())
+            {
+                client.Connect(server, 993, SecureSocketOptions.SslOnConnect);
+                client.Authenticate(username, password);
+                client.Inbox.Open(FolderAccess.ReadOnly);
+
+                var folders = (from FolderNamespace ns in client.PersonalNamespaces
+                               from folder in client.GetFolders(ns)
+                               select folder).ToList();
+
+                foreach (var folder in folders)
+                {                    
+                    folder.Open(FolderAccess.ReadOnly);
+                    var uids = folder.Search(SearchQuery.All);
+
+                    Console.WriteLine($"Downloading {uids.Count} items from folder '{folder.Name}'");
+                    foreach (var uid in uids)
+                    {
+                        var message = folder.GetMessage(uid);
+
+                        var destinationFolder = Path.Combine(output, message.Date.Year.ToString(), folder.Name);
+                        if (!Directory.Exists(destinationFolder))
+                            Directory.CreateDirectory(destinationFolder);
+                        var destination = Path.Combine(destinationFolder, $"{uid}.eml");
+
+                        message.WriteTo(destination);
+                    }
+                    folder.Close();
+                }
+                
+
+                client.Disconnect(true);
+            }
+            return ExitCodes.OK;
         }
     }
 }
