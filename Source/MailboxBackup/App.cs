@@ -58,6 +58,9 @@ namespace MailboxBackup
             if (!Directory.Exists(output))
                 Directory.CreateDirectory(output);
 
+            var filenamingStrategy = new IdNamingStrategy();
+            var organisationStrategy = new DatedFolderStructureOrganisationStrategy(output);
+
             using (var client = new ImapClient())
             {
                 client.Connect(server, 993, SecureSocketOptions.SslOnConnect);
@@ -92,11 +95,13 @@ namespace MailboxBackup
                         progress.Update();
                         var message = folder.GetMessage(uid);
 
-                        var destinationFolder = Path.Combine(output, message.Date.Year.ToString(), folder.Name);
+                        var destinationFolder = organisationStrategy.Apply(message, folder);
                         if (!Directory.Exists(destinationFolder))
                             Directory.CreateDirectory(destinationFolder);
-                        var destination = Path.Combine(destinationFolder, $"{uid}.eml");
 
+                        var filename = filenamingStrategy.Apply(uid, message);
+                        var destination = Path.Combine(destinationFolder, filename);
+                        
                         if(!File.Exists(destination))
                             message.WriteTo(destination);
                     }
