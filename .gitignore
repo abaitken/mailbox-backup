@@ -3,3 +3,4 @@ bin
 obj
 *.user
 packages
+/Source/MailboxBackup/Properties/launchSettings.json
