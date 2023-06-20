@@ -55,7 +55,8 @@ namespace MailboxBackup
                             Directory.CreateDirectory(destinationFolder);
                         var destination = Path.Combine(destinationFolder, $"{uid}.eml");
 
-                        message.WriteTo(destination);
+                        if(!File.Exists(destination))
+                            message.WriteTo(destination);
                     }
                     folder.Close();
                 }
