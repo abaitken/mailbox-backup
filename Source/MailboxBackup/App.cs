@@ -41,13 +41,16 @@ namespace MailboxBackup
                                select folder).ToList();
 
                 foreach (var folder in folders)
-                {                    
+                {
                     folder.Open(FolderAccess.ReadOnly);
                     var uids = folder.Search(SearchQuery.All);
 
                     Console.WriteLine($"Downloading {uids.Count} items from folder '{folder.Name}'");
+                    var progress = new ConsoleProgressDisplay();
+                    progress.Begin(uids.Count);
                     foreach (var uid in uids)
                     {
+                        progress.Update();
                         var message = folder.GetMessage(uid);
 
                         var destinationFolder = Path.Combine(output, message.Date.Year.ToString(), folder.Name);
@@ -58,6 +61,7 @@ namespace MailboxBackup
                         if(!File.Exists(destination))
                             message.WriteTo(destination);
                     }
+                    progress.End();
                     folder.Close();
                 }
                 
