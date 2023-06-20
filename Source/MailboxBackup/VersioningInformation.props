@@ -1,0 +1,11 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<Project>
+	<PropertyGroup>
+		<FileVersion>1.2.0</FileVersion>
+		<VersionSuffix></VersionSuffix>
+		<VersionPrefix>1.2.0</VersionPrefix>
+		<AssemblyVersion>1.0.0.0</AssemblyVersion>
+
+		<Authors>Alex Boyne-Aitken</Authors>
+	</PropertyGroup>
+</Project>
