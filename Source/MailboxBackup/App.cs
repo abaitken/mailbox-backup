@@ -5,6 +5,7 @@ using MailKit.Security;
 using System;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 
 namespace MailboxBackup
 {
@@ -16,16 +17,43 @@ namespace MailboxBackup
 
         internal int Run(string[] args)
         {
-            if(args.Length != 4)
+            var parser = new ArgumentParser(args);
+            if(parser.Count == 0)
             {
-                Console.WriteLine("ERROR: Expected 4 arguments: username, password, server, output folder");
+                Console.WriteLine("ERROR: Expected arguments");
                 return ExitCodes.InvalidArguments;
             }
 
-            var username = args[0];
-            var password = args[1];
-            var server = args[2];
-            var output = args[3];
+            var username = parser["-u"];
+            if(username == null)
+            {
+                Console.WriteLine("ERROR: Expected username");
+                return ExitCodes.InvalidArguments;
+            }
+
+            var password = parser["-p"];
+            if (password == null)
+            {
+                Console.WriteLine("ERROR: Expected password");
+                return ExitCodes.InvalidArguments;
+            }
+
+            var server = parser["-s"];
+            if (string.IsNullOrWhiteSpace(server))
+            {
+                Console.WriteLine("ERROR: Expected server");
+                return ExitCodes.InvalidArguments;
+            }
+
+            var output = parser["-o"];
+            if (string.IsNullOrWhiteSpace(server))
+            {
+                Console.WriteLine("ERROR: Expected output");
+                return ExitCodes.InvalidArguments;
+            }
+
+            var includeFolderFilter = parser["-if"] == null ? null : new Regex(parser["-if"]);
+            var excludeFolderFilter = parser["-xf"] == null ? null : new Regex(parser["-xf"]);
 
             if (!Directory.Exists(output))
                 Directory.CreateDirectory(output);
@@ -42,6 +70,17 @@ namespace MailboxBackup
 
                 foreach (var folder in folders)
                 {
+                    if(includeFolderFilter != null && !includeFolderFilter.IsMatch(folder.Name))
+                    {
+                        Console.WriteLine($"Skipping folder '{folder.Name}', did not match the include filter");
+                        continue;
+                    }
+
+                    if (excludeFolderFilter != null && excludeFolderFilter.IsMatch(folder.Name))
+                    {
+                        Console.WriteLine($"Skipping folder '{folder.Name}', matched the exclude filter");
+                        continue;
+                    }
                     folder.Open(FolderAccess.ReadOnly);
                     var uids = folder.Search(SearchQuery.All);
 
