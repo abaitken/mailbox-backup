@@ -20,6 +20,7 @@ namespace MailboxBackup
         {
             var parser = new ArgumentParser();
             parser.Describe("HELP", new[]{ "-h", "-?", "--help" }, "Help", "Display this help", ArgumentConditions.Help);
+            parser.Describe("CONFIG", new[]{ "-c", "--config" }, "Config file", "Configuration file\nLoads configuration file when encountered and inserts arguments into the queue. Subsequent arguments will override previous values.", ArgumentConditions.ArgsFileSource);
             
             parser.Describe("USER", new[]{ "-u", "--username" }, "Username", "Account username", ArgumentConditions.TypeString | ArgumentConditions.Required);
             parser.Describe("PASS", new[]{ "-p", "--password" }, "Password", "Account password", ArgumentConditions.TypeString | ArgumentConditions.Required, new [] { "USER" });

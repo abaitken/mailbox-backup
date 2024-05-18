@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.Json;
 using Org.BouncyCastle.Asn1;
 
 namespace MailboxBackup
@@ -28,7 +30,8 @@ namespace MailboxBackup
             IsFlag = TypeBoolean << 1,
             ExistingDir = IsFlag << 1,
             ExistingFile = ExistingDir << 1,
-            Help = ExistingFile << 1
+            Help = ExistingFile << 1,
+            ArgsFileSource = Help << 1
         }
 
         [Flags]
@@ -45,7 +48,8 @@ namespace MailboxBackup
             IsFlag = _ArgumentConditions.TypeBoolean | _ArgumentConditions.IsFlag,
             ExistingDir = _ArgumentConditions.ExistingDir,
             ExistingFile = _ArgumentConditions.ExistingFile,
-            Help = _ArgumentConditions.Help | IsFlag
+            Help = _ArgumentConditions.Help | IsFlag,
+            ArgsFileSource = _ArgumentConditions.ArgsFileSource | ExistingFile | TypeString
         }
 
         private readonly struct ArgumentDescription
@@ -124,28 +128,36 @@ namespace MailboxBackup
                 this.bools = new Dictionary<string, bool>();
             }
 
+            private void Add<T>(string key, T value, Dictionary<string, T> store)
+            {
+                if (ContainsKey(key))
+                {
+                    store[key] = value;
+                    return;
+                }
+
+                keys.Add(key);
+                store.Add(key, value);
+            }
+
             internal void Add(string key, bool value)
             {
-                keys.Add(key);
-                bools.Add(key, value);
+                Add(key, value, bools);
             }
 
             internal void Add(string key, int value)
             {
-                keys.Add(key);
-                ints.Add(key, value);
+                Add(key, value, ints);
             }
 
             internal void Add(string key, double value)
             {
-                keys.Add(key);
-                reals.Add(key, value);
+                Add(key, value, reals);
             }
 
             internal void Add(string key, string value)
             {
-                keys.Add(key);
-                strings.Add(key, value);
+                Add(key, value, strings);
             }
 
             internal bool ContainsKey(string key)
@@ -205,16 +217,73 @@ namespace MailboxBackup
             public string Key { get; }
         }
 
+        class SpecialQueue<T>
+        {
+            private readonly List<T> inner;
+
+            public SpecialQueue(IEnumerable<T> initial)
+            {
+                this.inner = new List<T>(initial);
+            }
+
+            public int Count
+            {
+                get => inner.Count;
+            }
+
+            private T UnsafeDequeue()
+            {
+                var result = inner[0];
+                inner.RemoveAt(0);
+                return result;
+            }
+
+            public T Dequeue()
+            {
+                if (Count == 0)
+                    throw new InvalidOperationException();
+
+                return UnsafeDequeue();
+            }
+
+            public bool TryDequeue(out T value)
+            {
+                if (Count == 0)
+                {
+                    value = default;
+                    return false;
+                }
+                value = UnsafeDequeue();
+                return true;
+            }
+
+            public void PutFront(T value)
+            {
+                inner.Insert(0, value);
+            }
+
+            public void PutFront(params T[] value)
+            {
+                inner.InsertRange(0, value);
+            }
+
+            public void PutFront(IEnumerable<T> values)
+            {
+                inner.InsertRange(0, values);
+            }
+
+        }
 
         public IEnumerable<ValidationError> ParseArgs(string[] args, out ArgumentValues argumentValues)
         {
             var result = new ArgumentValues();
             var errors = new List<ValidationError>();
             var values = new Dictionary<string, string>();
+            var argQueue = new SpecialQueue<string>(args);
 
-            for (int i = 0; i < args.Length; i++)
+            while (argQueue.Count != 0)
             {
-                var item = args[i];
+                var item = argQueue.Dequeue();
 
                 var argumentDescriptionLookup = argumentDescriptions.FirstOrNull(o => o.Value.Switches.Contains(item));
 
@@ -225,8 +294,10 @@ namespace MailboxBackup
                 }
                 var argumentDescription = argumentDescriptionLookup.Value;
 
-                i++;
-                var value = (i < args.Length) ? args[i] : null;
+                if (!argQueue.TryDequeue(out var value))
+                {
+                    value = null;
+                }
 
                 var conditions = argumentDescription.Value.Conditions;
 
@@ -236,10 +307,10 @@ namespace MailboxBackup
                     // If there is no value, treat as it has no value
                     var booleanValue = (value == null) ? null : ToBoolean(value);
 
-                    // If no valid value follows, jump back, discard the value
-                    if (!booleanValue.HasValue)
+                    // If valid value follows, dequeue the next value
+                    if (booleanValue.HasValue)
                     {
-                        i--;
+                        argQueue.PutFront(value);
                     }
 
                     // Use value is present or revert to true if there is no value
@@ -317,6 +388,22 @@ namespace MailboxBackup
                 }
 
                 result.Add(argumentDescription.Key, value);
+
+                if (conditions.HasFlag(_ArgumentConditions.ArgsFileSource))
+                {
+                    using Stream configStream = fileSystem.Read(value);
+                    using var jsonDoc = JsonDocument.Parse(configStream);
+                    foreach (var obj in jsonDoc.RootElement.EnumerateObject())
+                    {
+                        if (!argumentDescriptions.ContainsKey(obj.Name))
+                            continue;
+
+                        var argSubject = argumentDescriptions[obj.Name];
+                        argQueue.PutFront(argSubject.Switches.First(), obj.Value.ToString());
+                    }
+                    configStream.Close();
+                    continue;
+                }
             }
 
             foreach (var item in argumentDescriptions)
@@ -338,7 +425,7 @@ namespace MailboxBackup
             }
 
             argumentValues = result;
-            return errors;
+            return errors.Distinct().ToList();
         }
 
         private static bool? ToBoolean(string value)
@@ -362,15 +449,15 @@ namespace MailboxBackup
                 var otherForms = item.Value.Switches.Skip(1).Any()
                     ? "\n" + "(Other forms: " + item.Value.Switches.Skip(1).Combine(" ") + ")"
                     : string.Empty;
-                
+
                 var optional = item.Value.Conditions.HasFlag(_ArgumentConditions.Optional)
                     ? "(Optional) "
                     : string.Empty;
-                
+
                 var dependsOnList = new StringBuilder();
                 foreach (var key in item.Value.DependsOnKeys)
                 {
-                    if(dependsOnList.Length != 0)
+                    if (dependsOnList.Length != 0)
                         dependsOnList.Append(' ');
                     dependsOnList.Append(argumentDescriptions[key].Switches.First());
                 }
@@ -379,7 +466,9 @@ namespace MailboxBackup
                     ? "\n" + "Depends on " + dependsOnList.ToString()
                     : string.Empty;
 
-                helptext.Add(optional + item.Value.Helptext + dependsOn + otherForms);
+                var configurationKey = "\nConfiguration key: " + item.Key;
+
+                helptext.Add(optional + item.Value.Helptext + dependsOn + otherForms + configurationKey);
             }
 
             var maxSwitchWidth = switches.Max(o => o.Length);
@@ -394,7 +483,7 @@ namespace MailboxBackup
 
                 for (int j = 0; j < helpTextLines.Length; j++)
                 {
-                    var switchColumn = j == 0 
+                    var switchColumn = j == 0
                         ? switchIndent + switches[i].PadRight(switchColumnWidth)
                         : switchIndent + emptySwitchColumn;
 

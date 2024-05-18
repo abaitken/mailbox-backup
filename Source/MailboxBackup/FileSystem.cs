@@ -13,5 +13,10 @@ namespace MailboxBackup
         {
             return File.Exists(value);
         }
+
+        public Stream Read(string value)
+        {
+            return new FileStream(value, FileMode.Open);
+        }
     }
 }
