@@ -6,6 +6,7 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
+using static MailboxBackup.ArgumentParser;
 
 namespace MailboxBackup
 {
@@ -17,43 +18,40 @@ namespace MailboxBackup
 
         internal int Run(string[] args)
         {
-            var parser = new ArgumentParser(args);
-            if(parser.Count == 0)
+            var parser = new ArgumentParser();
+            parser.Describe("HELP", new[]{ "-h", "-?", "--help" }, "Help", "Display this help", ArgumentConditions.Help);
+            
+            parser.Describe("USER", new[]{ "-u", "--username" }, "Username", "Account username", ArgumentConditions.TypeString | ArgumentConditions.Required);
+            parser.Describe("PASS", new[]{ "-p", "--password" }, "Password", "Account password", ArgumentConditions.TypeString | ArgumentConditions.Required, new [] { "USER" });
+            parser.Describe("SERVER", new[]{ "-s", "--server" }, "Server", "Server address", ArgumentConditions.TypeString | ArgumentConditions.Required);
+            parser.Describe("OUTPUTDIR", new[]{ "-o", "--outdir" }, "Output", "Output directory", ArgumentConditions.TypeString | ArgumentConditions.Required);
+            parser.Describe("FOLDER_INC", new[]{ "-if" }, "Include pattern", "Include folder regex\nWhen supplied, only remote folder names matching the pattern will be downloaded. (Otherwise all folders will be downloaded)", ArgumentConditions.TypeString);
+            parser.Describe("FOLDER_EXC", new[]{ "-xf" }, "Exclude pattern", "Exclude folder regex\nWhen supplied, remote folders matching the pattern will not be downloaded", ArgumentConditions.TypeString);
+
+            var argumentErrors = parser.ParseArgs(args, out var argumentValues);
+
+            if(argumentValues.ContainsKey("HELP"))
             {
-                Console.WriteLine("ERROR: Expected arguments");
-                return ExitCodes.InvalidArguments;
+                Console.WriteLine("Mailbox Backup");
+                Console.WriteLine("  Download remote mail items to local filesystem");
+                Console.WriteLine();
+                parser.DisplayHelp(ConsoleHelper.GetBufferWidthOrDefault(80));
+                return ExitCodes.OK;
             }
 
-            var username = parser["-u"];
-            if(username == null)
+            if(argumentErrors.Any())
             {
-                Console.WriteLine("ERROR: Expected username");
-                return ExitCodes.InvalidArguments;
+                parser.ReportErrors(argumentErrors);
+                return ExitCodes.OK;
             }
 
-            var password = parser["-p"];
-            if (password == null)
-            {
-                Console.WriteLine("ERROR: Expected password");
-                return ExitCodes.InvalidArguments;
-            }
+            var username = argumentValues["USER"];
+            var password = argumentValues["PASS"];
+            var server = argumentValues["SERVER"];
+            var output = argumentValues["OUTDIR"];
 
-            var server = parser["-s"];
-            if (string.IsNullOrWhiteSpace(server))
-            {
-                Console.WriteLine("ERROR: Expected server");
-                return ExitCodes.InvalidArguments;
-            }
-
-            var output = parser["-o"];
-            if (string.IsNullOrWhiteSpace(server))
-            {
-                Console.WriteLine("ERROR: Expected output");
-                return ExitCodes.InvalidArguments;
-            }
-
-            var includeFolderFilter = parser["-if"] == null ? null : new Regex(parser["-if"]);
-            var excludeFolderFilter = parser["-xf"] == null ? null : new Regex(parser["-xf"]);
+            var includeFolderFilter = argumentValues.ContainsKey("FOLDER_INC") ? new Regex(argumentValues["FOLDER_INC"]) : null;
+            var excludeFolderFilter = argumentValues.ContainsKey("FOLDER_EXC") ? new Regex(argumentValues["FOLDER_EXC"]) : null;
 
             if (!Directory.Exists(output))
                 Directory.CreateDirectory(output);
