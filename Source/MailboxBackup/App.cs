@@ -19,20 +19,20 @@ namespace MailboxBackup
         internal int Run(string[] args)
         {
             var parser = new ArgumentParser();
-            parser.Describe("HELP", new[]{ "-h", "-?", "--help" }, "Help", "Display this help", ArgumentConditions.Help);
-            parser.Describe("CONFIG", new[]{ "-c", "--config" }, "Config file", "Configuration file\nLoads configuration file when encountered and inserts arguments into the queue. Subsequent arguments will override previous values.", ArgumentConditions.ArgsFileSource);
-            
-            parser.Describe("USER", new[]{ "-u", "--username" }, "Username", "Account username", ArgumentConditions.TypeString | ArgumentConditions.Required);
-            parser.Describe("PASS", new[]{ "-p", "--password" }, "Password", "Account password", ArgumentConditions.TypeString | ArgumentConditions.Required, new [] { "USER" });
-            parser.Describe("SERVER", new[]{ "-s", "--server" }, "Server", "Server address", ArgumentConditions.TypeString | ArgumentConditions.Required);
-            parser.Describe("SERVER_PORT", new[]{ "--port" }, "Server port", "Server port", ArgumentConditions.TypeInteger, null, 993.ToString());
-            parser.Describe("OUTPUTDIR", new[]{ "-o", "--outdir" }, "Output", "Output directory", ArgumentConditions.TypeString | ArgumentConditions.Required);
-            parser.Describe("FOLDER_INC", new[]{ "-if" }, "Include pattern", "Include folder regex\nWhen supplied, only remote folder names matching the pattern will be downloaded. (Otherwise all folders will be downloaded)", ArgumentConditions.TypeString);
-            parser.Describe("FOLDER_EXC", new[]{ "-xf" }, "Exclude pattern", "Exclude folder regex\nWhen supplied, remote folders matching the pattern will not be downloaded", ArgumentConditions.TypeString);
+            parser.Describe("HELP", new[] { "-h", "-?", "--help" }, "Help", "Display this help", ArgumentConditions.Help);
+            parser.Describe("CONFIG", new[] { "-c", "--config" }, "Config file", "Configuration file\nLoads configuration file when encountered and inserts arguments into the queue. Subsequent arguments will override previous values.", ArgumentConditions.ArgsFileSource);
+
+            parser.Describe("USER", new[] { "-u", "--username" }, "Username", "Account username", ArgumentConditions.TypeString | ArgumentConditions.Required);
+            parser.Describe("PASS", new[] { "-p", "--password" }, "Password", "Account password", ArgumentConditions.TypeString | ArgumentConditions.Required, new[] { "USER" });
+            parser.Describe("SERVER", new[] { "-s", "--server" }, "Server", "Server address", ArgumentConditions.TypeString | ArgumentConditions.Required);
+            parser.Describe("SERVER_PORT", new[] { "--port" }, "Server port", "Server port", ArgumentConditions.TypeInteger, null, 993.ToString());
+            parser.Describe("OUTPUTDIR", new[] { "-o", "--outdir" }, "Output", "Output directory", ArgumentConditions.TypeString | ArgumentConditions.Required);
+            parser.Describe("FOLDER_INC", new[] { "-if" }, "Include pattern", "Include folder regex\nWhen supplied, only remote folder names matching the pattern will be downloaded. (Otherwise all folders will be downloaded)", ArgumentConditions.TypeString);
+            parser.Describe("FOLDER_EXC", new[] { "-xf" }, "Exclude pattern", "Exclude folder regex\nWhen supplied, remote folders matching the pattern will not be downloaded", ArgumentConditions.TypeString);
 
             var argumentErrors = parser.ParseArgs(args, out var argumentValues);
 
-            if(argumentValues.ContainsKey("HELP"))
+            if (argumentValues.ContainsKey("HELP"))
             {
                 Console.WriteLine("Mailbox Backup");
                 Console.WriteLine("  Download remote mail items to local filesystem");
@@ -41,7 +41,7 @@ namespace MailboxBackup
                 return ExitCodes.OK;
             }
 
-            if(argumentErrors.Any())
+            if (argumentErrors.Any())
             {
                 parser.ReportErrors(argumentErrors);
                 return ExitCodes.OK;
@@ -51,7 +51,7 @@ namespace MailboxBackup
             var password = argumentValues["PASS"];
             var server = argumentValues["SERVER"];
             var port = argumentValues.GetInt("SERVER_PORT");
-            var output = argumentValues["OUTDIR"];
+            var output = argumentValues["OUTPUTDIR"];
 
             var includeFolderFilter = argumentValues.ContainsKey("FOLDER_INC") ? new Regex(argumentValues["FOLDER_INC"]) : null;
             var excludeFolderFilter = argumentValues.ContainsKey("FOLDER_EXC") ? new Regex(argumentValues["FOLDER_EXC"]) : null;
@@ -74,7 +74,7 @@ namespace MailboxBackup
 
                 foreach (var folder in folders)
                 {
-                    if(includeFolderFilter != null && !includeFolderFilter.IsMatch(folder.Name))
+                    if (includeFolderFilter != null && !includeFolderFilter.IsMatch(folder.Name))
                     {
                         Console.WriteLine($"Skipping folder '{folder.Name}', did not match the include filter");
                         continue;
@@ -88,7 +88,7 @@ namespace MailboxBackup
                     folder.Open(FolderAccess.ReadOnly);
                     var uids = folder.Search(SearchQuery.All);
 
-                    Console.WriteLine($"Downloading {uids.Count} items from folder '{folder.Name}'");
+                        Console.WriteLine($"Downloading {uids.Count} items from folder '{folder.Name}'");
                     var progress = new ConsoleProgressDisplay();
                     progress.Begin(uids.Count);
                     foreach (var uid in uids)
@@ -96,20 +96,20 @@ namespace MailboxBackup
                         progress.Update();
                         var message = folder.GetMessage(uid);
 
-                        var destinationFolder = organisationStrategy.Apply(message, folder);
-                        if (!Directory.Exists(destinationFolder))
-                            Directory.CreateDirectory(destinationFolder);
+                            var destinationFolder = organisationStrategy.Apply(message, folder);
+                            if (!Directory.Exists(destinationFolder))
+                                Directory.CreateDirectory(destinationFolder);
 
-                        var filename = filenamingStrategy.Apply(uid, message);
-                        var destination = Path.Combine(destinationFolder, filename);
-                        
-                        if(!File.Exists(destination))
-                            message.WriteTo(destination);
-                    }
+                            var filename = filenamingStrategy.Apply(uid, message);
+                            var destination = Path.Combine(destinationFolder, filename);
+
+                            if (!File.Exists(destination))
+                                message.WriteTo(destination);
+                        }
                     progress.End();
                     folder.Close();
                 }
-                
+
 
                 client.Disconnect(true);
             }
