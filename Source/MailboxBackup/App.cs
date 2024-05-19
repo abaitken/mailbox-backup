@@ -61,8 +61,9 @@ namespace MailboxBackup
             var includeFolderFilter = argumentValues.ContainsKey("FOLDER_INC") ? new Regex(argumentValues["FOLDER_INC"]) : null;
             var excludeFolderFilter = argumentValues.ContainsKey("FOLDER_EXC") ? new Regex(argumentValues["FOLDER_EXC"]) : null;
 
-            if (!Directory.Exists(output))
-                Directory.CreateDirectory(output);
+            IFileSystem fileSystem = new FileSystem();
+            if (!fileSystem.DirectoryExists(output))
+                fileSystem.CreateDirectory(output);
 
             var filenamingStrategy = new IdNamingStrategy();
             var organisationStrategy = new DatedFolderStructureOrganisationStrategy(output);
@@ -119,13 +120,13 @@ namespace MailboxBackup
                         if (download)
                         {
                             var destinationFolder = organisationStrategy.Apply(message, folder);
-                            if (!Directory.Exists(destinationFolder))
-                                Directory.CreateDirectory(destinationFolder);
+                            if (!fileSystem.DirectoryExists(destinationFolder))
+                                fileSystem.CreateDirectory(destinationFolder);
 
                             var filename = filenamingStrategy.Apply(uid, message);
                             var destination = Path.Combine(destinationFolder, filename);
 
-                            if (!File.Exists(destination))
+                            if (!fileSystem.FileExists(destination))
                                 message.WriteTo(destination);
                         }
                     }

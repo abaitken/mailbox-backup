@@ -4,6 +4,11 @@ namespace MailboxBackup
 {
     internal class FileSystem : IFileSystem
     {
+        public void CreateDirectory(string value)
+        {
+            Directory.CreateDirectory(value);
+        }
+
         public bool DirectoryExists(string value)
         {
             return Directory.Exists(value);
