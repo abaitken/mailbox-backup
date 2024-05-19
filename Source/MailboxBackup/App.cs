@@ -3,7 +3,6 @@ using MailKit.Net.Imap;
 using MailKit.Search;
 using MailKit.Security;
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -13,8 +12,11 @@ namespace MailboxBackup
 {
     internal class App
     {
-        public App()
+        private readonly Logger defaultLogger;
+
+        public App(Logger defaultLogger)
         {
+            this.defaultLogger = defaultLogger;
         }
 
         internal int Run(string[] args)
@@ -32,14 +34,16 @@ namespace MailboxBackup
             parser.Describe("FOLDER_EXC", new[] { "-xf" }, "Exclude pattern", "Exclude folder regex\nWhen supplied, remote folders matching the pattern will not be downloaded", ArgumentConditions.TypeString);
             parser.Describe("DOWNLOAD_NO", new[] { "--nodl" }, "No download", "Do not download", ArgumentConditions.IsFlag);
             parser.Describe("TLSMODE", new[] { "--tlsmode" }, "TLS Options", "TLS Options", ArgumentConditions.Options, null, "SslOnConnect", new[] { "None", "Auto", "SslOnConnect", "StartTls", "StartTlsWhenAvailable" });
+            parser.Describe("REMOTE_MOVE", new[] { "--remotemove" }, "Organise remote mail", "Move and organise messages remotely on the server", ArgumentConditions.IsFlag);
+            parser.Describe("IMAP_LOG", new[] { "-il", "--imaplog" }, "IMAP log", "IMAP log", ArgumentConditions.TypeString);
 
             var argumentErrors = parser.ParseArgs(args, out var argumentValues);
 
             if (argumentValues.ContainsKey("HELP") && argumentValues.GetBool("HELP"))
             {
-                Console.WriteLine("Mailbox Backup");
-                Console.WriteLine("  Download remote mail items to local filesystem");
-                Console.WriteLine();
+                defaultLogger.WriteLine("Mailbox Backup");
+                defaultLogger.WriteLine("  Download remote mail items to local filesystem");
+                defaultLogger.WriteLine();
                 parser.DisplayHelp(ConsoleHelper.GetBufferWidthOrDefault(80));
                 return ExitCodes.OK;
             }
@@ -57,6 +61,8 @@ namespace MailboxBackup
             var output = argumentValues["OUTPUTDIR"];
             var download = !argumentValues.GetBool("DOWNLOAD_NO");
             var tlsOption = ToSecureSocketOptions(argumentValues["TLSMODE"]);
+            var remoteMove = argumentValues.GetBool("REMOTE_MOVE");
+            var imaplog = argumentValues.GetString("IMAP_LOG", null);
 
             var includeFolderFilter = argumentValues.ContainsKey("FOLDER_INC") ? new Regex(argumentValues["FOLDER_INC"]) : null;
             var excludeFolderFilter = argumentValues.ContainsKey("FOLDER_EXC") ? new Regex(argumentValues["FOLDER_EXC"]) : null;
@@ -66,77 +72,72 @@ namespace MailboxBackup
                 fileSystem.CreateDirectory(output);
 
             var filenamingStrategy = new IdNamingStrategy();
-            var organisationStrategy = new DatedFolderStructureOrganisationStrategy(output);
+            var localOrganisationStrategy = new DatedFolderStructureOrganisationStrategy(output);
+            RemoteOrganisationStrategy remoteOrganisationStrategy = remoteMove 
+                ? new DatedFolderStructureRemoteOrganisationStrategy() 
+                : new PreserveRemoteOrganisationStrategy();
 
-            using (var client = new ImapClient())
+            using var client = imaplog == null 
+                ? new ImapClient()
+                : new ImapClient(new ProtocolLogger(imaplog));
+                
+            client.Connect(server, port, tlsOption);
+            client.Authenticate(username, password);
+            client.Inbox.Open(FolderAccess.ReadOnly);
+
+            var folderView = RemoteFolderView.Build(defaultLogger, client, includeFolderFilter, excludeFolderFilter);
+
+            var actionText = download ? "Downloading" : "Iterating";
+            defaultLogger.WriteLine($"{actionText}...");
+
+            var folderCounter = new EnumerableCounter(folderView.Folders.Count);
+            foreach(var folder in folderView.Folders)
             {
-                client.Connect(server, port, tlsOption);
-                client.Authenticate(username, password);
-                client.Inbox.Open(FolderAccess.ReadOnly);
+                var folderProgressText = folderCounter.Next();
 
-                var folders = (from FolderNamespace ns in client.PersonalNamespaces
-                               from folder in client.GetFolders(ns)
-                               select folder).ToList();
+                folder.Open(FolderAccess.ReadOnly);
+                var uids = folder.Search(SearchQuery.All);
 
-
-                Console.WriteLine($"Discovering...");
-                var selectedFolders = new List<IMailFolder>();
-
-                foreach (var folder in folders)
+                defaultLogger.WriteLine($"{actionText} {uids.Count} items from folder '{folder.FullName}' ({folderProgressText})");
+                var progress = new ConsoleProgressDisplay();
+                progress.Begin(uids.Count);
+                foreach (var uid in uids)
                 {
-                    if (includeFolderFilter != null && !includeFolderFilter.IsMatch(folder.Name))
+                    progress.Update();
+
+                    var message = folder.GetMessage(uid);
+
+                    var remotePath = remoteOrganisationStrategy.Apply(message, folder);
+                    if(remotePath != null && !folder.FullName.Equals(remotePath))
                     {
-                        Console.WriteLine($"\tSkipping folder '{folder.Name}', did not match the include filter");
-                        continue;
+                        var target = folderView.Find(remotePath);
+                        if(target == null)
+                            target = folderView.Create(remotePath);
+
+                        folder.Open(FolderAccess.ReadWrite);
+                        folder.MoveTo(uid, target);
+                        //folder.Close();
                     }
 
-                    if (excludeFolderFilter != null && excludeFolderFilter.IsMatch(folder.Name))
+                    if (download)
                     {
-                        Console.WriteLine($"\tSkipping folder '{folder.Name}', matched the exclude filter");
-                        continue;
-                    }
+                        var destinationFolder = localOrganisationStrategy.Apply(message, folder);
+                        if (!fileSystem.DirectoryExists(destinationFolder))
+                            fileSystem.CreateDirectory(destinationFolder);
 
-                    selectedFolders.Add(folder);
+                        var filename = filenamingStrategy.Apply(uid, message);
+                        var destination = Path.Combine(destinationFolder, filename);
+
+                        if (!fileSystem.FileExists(destination))
+                            message.WriteTo(destination);
+                    }
                 }
-
-                var actionText = download ? "Downloading" : "Iterating";
-                Console.WriteLine($"{actionText}...");
-
-                for (int i = 0; i < selectedFolders.Count; i++)
-                {
-                    var folder = selectedFolders[i];
-
-                    folder.Open(FolderAccess.ReadOnly);
-                    var uids = folder.Search(SearchQuery.All);
-
-                    Console.WriteLine($"{actionText} {uids.Count} items from folder '{folder.Name}' ({i + 1}/{selectedFolders.Count})");
-                    var progress = new ConsoleProgressDisplay();
-                    progress.Begin(uids.Count);
-                    foreach (var uid in uids)
-                    {
-                        progress.Update();
-
-                        var message = folder.GetMessage(uid);
-                        if (download)
-                        {
-                            var destinationFolder = organisationStrategy.Apply(message, folder);
-                            if (!fileSystem.DirectoryExists(destinationFolder))
-                                fileSystem.CreateDirectory(destinationFolder);
-
-                            var filename = filenamingStrategy.Apply(uid, message);
-                            var destination = Path.Combine(destinationFolder, filename);
-
-                            if (!fileSystem.FileExists(destination))
-                                message.WriteTo(destination);
-                        }
-                    }
-                    progress.End();
-                    folder.Close();
-                }
-
-
-                client.Disconnect(true);
+                progress.End();
+                folder.Close();
             }
+
+
+            client.Disconnect(true);
             return ExitCodes.OK;
         }
 
