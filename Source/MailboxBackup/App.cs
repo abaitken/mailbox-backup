@@ -33,6 +33,7 @@ namespace MailboxBackup
             parser.Describe("DOWNLOAD_NO", new[] { "--nodl" }, "No download", "Do not download", ArgumentConditions.IsFlag);
             parser.Describe("TLSMODE", new[] { "--tlsmode" }, "TLS Options", "TLS Options", ArgumentConditions.Options, null, "SslOnConnect", new[] { "None", "Auto", "SslOnConnect", "StartTls", "StartTlsWhenAvailable" });
             parser.Describe("REMOTE_MOVE", new[] { "--remotemove" }, "Organise remote mail", "Move and organise messages remotely on the server", ArgumentConditions.IsFlag);
+            parser.Describe("IMAP_LOG", new[] { "-il", "--imaplog" }, "IMAP log", "IMAP log", ArgumentConditions.TypeString);
 
             var argumentErrors = parser.ParseArgs(args, out var argumentValues);
 
@@ -59,6 +60,7 @@ namespace MailboxBackup
             var download = !argumentValues.GetBool("DOWNLOAD_NO");
             var tlsOption = ToSecureSocketOptions(argumentValues["TLSMODE"]);
             var remoteMove = argumentValues.GetBool("REMOTE_MOVE");
+            var imaplog = argumentValues.GetString("IMAP_LOG", null);
 
             var includeFolderFilter = argumentValues.ContainsKey("FOLDER_INC") ? new Regex(argumentValues["FOLDER_INC"]) : null;
             var excludeFolderFilter = argumentValues.ContainsKey("FOLDER_EXC") ? new Regex(argumentValues["FOLDER_EXC"]) : null;
@@ -73,7 +75,10 @@ namespace MailboxBackup
                 ? new DatedFolderStructureRemoteOrganisationStrategy() 
                 : new PreserveRemoteOrganisationStrategy();
 
-            using var client = new ImapClient();
+            using var client = imaplog == null 
+                ? new ImapClient()
+                : new ImapClient(new ProtocolLogger(imaplog));
+                
             client.Connect(server, port, tlsOption);
             client.Authenticate(username, password);
             client.Inbox.Open(FolderAccess.ReadOnly);
