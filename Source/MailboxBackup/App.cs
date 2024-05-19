@@ -25,6 +25,7 @@ namespace MailboxBackup
             parser.Describe("USER", new[]{ "-u", "--username" }, "Username", "Account username", ArgumentConditions.TypeString | ArgumentConditions.Required);
             parser.Describe("PASS", new[]{ "-p", "--password" }, "Password", "Account password", ArgumentConditions.TypeString | ArgumentConditions.Required, new [] { "USER" });
             parser.Describe("SERVER", new[]{ "-s", "--server" }, "Server", "Server address", ArgumentConditions.TypeString | ArgumentConditions.Required);
+            parser.Describe("SERVER_PORT", new[]{ "--port" }, "Server port", "Server port", ArgumentConditions.TypeInteger, null, 993.ToString());
             parser.Describe("OUTPUTDIR", new[]{ "-o", "--outdir" }, "Output", "Output directory", ArgumentConditions.TypeString | ArgumentConditions.Required);
             parser.Describe("FOLDER_INC", new[]{ "-if" }, "Include pattern", "Include folder regex\nWhen supplied, only remote folder names matching the pattern will be downloaded. (Otherwise all folders will be downloaded)", ArgumentConditions.TypeString);
             parser.Describe("FOLDER_EXC", new[]{ "-xf" }, "Exclude pattern", "Exclude folder regex\nWhen supplied, remote folders matching the pattern will not be downloaded", ArgumentConditions.TypeString);
@@ -49,6 +50,7 @@ namespace MailboxBackup
             var username = argumentValues["USER"];
             var password = argumentValues["PASS"];
             var server = argumentValues["SERVER"];
+            var port = argumentValues.GetInt("SERVER_PORT");
             var output = argumentValues["OUTDIR"];
 
             var includeFolderFilter = argumentValues.ContainsKey("FOLDER_INC") ? new Regex(argumentValues["FOLDER_INC"]) : null;
@@ -62,7 +64,7 @@ namespace MailboxBackup
 
             using (var client = new ImapClient())
             {
-                client.Connect(server, 993, SecureSocketOptions.SslOnConnect);
+                client.Connect(server, port, SecureSocketOptions.SslOnConnect);
                 client.Authenticate(username, password);
                 client.Inbox.Open(FolderAccess.ReadOnly);
 

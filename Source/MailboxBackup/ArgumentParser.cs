@@ -54,7 +54,7 @@ namespace MailboxBackup
 
         private readonly struct ArgumentDescription
         {
-            public ArgumentDescription(IEnumerable<string> switches, string shorttext, string helptext, _ArgumentConditions conditions, IEnumerable<string> dependsOnKeys)
+            public ArgumentDescription(IEnumerable<string> switches, string shorttext, string helptext, _ArgumentConditions conditions, IEnumerable<string> dependsOnKeys, string defaultValue)
             {
                 if (switches == null || !switches.Any())
                     throw new ArgumentException("Expected switches");
@@ -73,6 +73,8 @@ namespace MailboxBackup
                 Helptext = helptext;
                 Conditions = conditions;
                 DependsOnKeys = dependsOnKeys;
+                DefaultValue = defaultValue;
+
             }
 
             public IEnumerable<string> Switches { get; }
@@ -80,6 +82,8 @@ namespace MailboxBackup
             public string Helptext { get; }
             public _ArgumentConditions Conditions { get; }
             public IEnumerable<string> DependsOnKeys { get; }
+            public string DefaultValue { get; }
+
         }
 
         internal ArgumentParser(IFileSystem fileSystem)
@@ -93,7 +97,7 @@ namespace MailboxBackup
             this.argumentDescriptions = new Dictionary<string, ArgumentDescription>();
         }
 
-        public void Describe(string key, IEnumerable<string> switches, string shorttext, string helptext, ArgumentConditions conditions = ArgumentConditions.None, IEnumerable<string> dependsOnKeys = null)
+        public void Describe(string key, IEnumerable<string> switches, string shorttext, string helptext, ArgumentConditions conditions, IEnumerable<string> dependsOnKeys = null, string defaultValue = null)
         {
             if (string.IsNullOrEmpty(key))
                 throw new ArgumentNullException(nameof(key), "Expected key");
@@ -108,7 +112,7 @@ namespace MailboxBackup
                 throw new InvalidOperationException("Dependency argument keys not found!");
 
             // TODO : Check conflicting conditions
-            argumentDescriptions.Add(key, new ArgumentDescription(switches.ToList(), shorttext, helptext, (_ArgumentConditions)adjustedConditions, dependsOnKeys));
+            argumentDescriptions.Add(key, new ArgumentDescription(switches.ToList(), shorttext, helptext, (_ArgumentConditions)adjustedConditions, dependsOnKeys, defaultValue));
         }
 
         public class ArgumentValues
@@ -406,22 +410,68 @@ namespace MailboxBackup
                 }
             }
 
-            foreach (var item in argumentDescriptions)
+            // Check for missing required arguments and add values for arguments with default values
+            foreach (var argumentDescription in argumentDescriptions)
             {
-                foreach (var key in item.Value.DependsOnKeys)
+                foreach (var key in argumentDescription.Value.DependsOnKeys)
                 {
                     if (!result.ContainsKey(key))
                         errors.Add(new ValidationError(ValidationErrorType.RequiredArgMissing, null, key));
                 }
 
-                if (!item.Value.Conditions.HasFlag(_ArgumentConditions.Required))
+                if (result.ContainsKey(argumentDescription.Key))
                     continue;
 
-                if (!result.ContainsKey(item.Key))
+                var conditions = argumentDescription.Value.Conditions;
+                if (conditions.HasFlag(_ArgumentConditions.Required))
                 {
-                    errors.Add(new ValidationError(ValidationErrorType.RequiredArgMissing, null, item.Key));
+                    errors.Add(new ValidationError(ValidationErrorType.RequiredArgMissing, null, argumentDescription.Key));
                     continue;
                 }
+
+                var value = argumentDescription.Value.DefaultValue;
+                if(string.IsNullOrEmpty(value))
+                    continue;
+
+                if (conditions.HasFlag(_ArgumentConditions.TypeInteger))
+                {
+                    if (!int.TryParse(value, out int argValue))
+                    {
+                        errors.Add(new ValidationError(ValidationErrorType.IncorrectType, value, argumentDescription.Key));
+                        continue;
+                    }
+
+                    result.Add(argumentDescription.Key, argValue);
+                    continue;
+                }
+
+                if (conditions.HasFlag(_ArgumentConditions.TypeReal))
+                {
+                    if (!double.TryParse(value, out double argValue))
+                    {
+                        errors.Add(new ValidationError(ValidationErrorType.IncorrectType, value, argumentDescription.Key));
+                        continue;
+                    }
+
+                    result.Add(argumentDescription.Key, argValue);
+                    continue;
+                }
+
+                if (conditions.HasFlag(_ArgumentConditions.TypeBoolean))
+                {
+                    var argValue = ToBoolean(value);
+                    if (!argValue.HasValue)
+                    {
+                        errors.Add(new ValidationError(ValidationErrorType.IncorrectType, value, argumentDescription.Key));
+                        continue;
+                    }
+
+                    result.Add(argumentDescription.Key, argValue.Value);
+                    continue;
+                }
+
+                // For string
+                result.Add(argumentDescription.Key, value);
             }
 
             argumentValues = result;
@@ -454,6 +504,10 @@ namespace MailboxBackup
                     ? "(Optional) "
                     : string.Empty;
 
+                var defaultValue = !string.IsNullOrEmpty(item.Value.DefaultValue)
+                    ? "\nDefault value: " + item.Value.DefaultValue
+                    : string.Empty;
+
                 var dependsOnList = new StringBuilder();
                 foreach (var key in item.Value.DependsOnKeys)
                 {
@@ -468,7 +522,7 @@ namespace MailboxBackup
 
                 var configurationKey = "\nConfiguration key: " + item.Key;
 
-                helptext.Add(optional + item.Value.Helptext + dependsOn + otherForms + configurationKey);
+                helptext.Add(optional + item.Value.Helptext + dependsOn + otherForms + defaultValue + configurationKey);
             }
 
             var maxSwitchWidth = switches.Max(o => o.Length);
