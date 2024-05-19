@@ -15,7 +15,8 @@ namespace MailboxBackup
 
         public override string Apply(MimeMessage message, IMailFolder folder)
         {
-            return Path.Combine(_outputFolder, message.Date.Year.ToString(), folder.Name);
+            var pathName  = folder.Name.Replace('/', Path.DirectorySeparatorChar);
+            return Path.Combine(_outputFolder, message.Date.Year.ToString(), pathName);
         }
     }
 }

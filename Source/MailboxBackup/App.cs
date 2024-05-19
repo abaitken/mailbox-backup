@@ -93,15 +93,15 @@ namespace MailboxBackup
 
             foreach (var folder in folders)
             {
-                if (includeFolderFilter != null && !includeFolderFilter.IsMatch(folder.Name))
+                if (includeFolderFilter != null && !includeFolderFilter.IsMatch(folder.FullName))
                 {
-                    Console.WriteLine($"\tSkipping folder '{folder.Name}', did not match the include filter");
+                    Console.WriteLine($"\tSkipping folder '{folder.FullName}', did not match the include filter");
                     continue;
                 }
 
-                if (excludeFolderFilter != null && excludeFolderFilter.IsMatch(folder.Name))
+                if (excludeFolderFilter != null && excludeFolderFilter.IsMatch(folder.FullName))
                 {
-                    Console.WriteLine($"\tSkipping folder '{folder.Name}', matched the exclude filter");
+                    Console.WriteLine($"\tSkipping folder '{folder.FullName}', matched the exclude filter");
                     continue;
                 }
 
@@ -118,7 +118,7 @@ namespace MailboxBackup
                 folder.Open(FolderAccess.ReadOnly);
                 var uids = folder.Search(SearchQuery.All);
 
-                Console.WriteLine($"{actionText} {uids.Count} items from folder '{folder.Name}' ({i + 1}/{selectedFolders.Count})");
+                Console.WriteLine($"{actionText} {uids.Count} items from folder '{folder.FullName}' ({i + 1}/{selectedFolders.Count})");
                 var progress = new ConsoleProgressDisplay();
                 progress.Begin(uids.Count);
                 foreach (var uid in uids)
