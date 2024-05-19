@@ -10,7 +10,7 @@ namespace MailboxBackup
     {
         static int Main(string[] args)
         {
-            var app = new App();
+            var app = new App(new ConsoleLogger());
             return app.Run(args);
         }
     }

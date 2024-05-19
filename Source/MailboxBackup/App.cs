@@ -3,7 +3,6 @@ using MailKit.Net.Imap;
 using MailKit.Search;
 using MailKit.Security;
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -13,8 +12,11 @@ namespace MailboxBackup
 {
     internal class App
     {
-        public App()
+        private readonly Logger defaultLogger;
+
+        public App(Logger defaultLogger)
         {
+            this.defaultLogger = defaultLogger;
         }
 
         internal int Run(string[] args)
@@ -39,9 +41,9 @@ namespace MailboxBackup
 
             if (argumentValues.ContainsKey("HELP") && argumentValues.GetBool("HELP"))
             {
-                Console.WriteLine("Mailbox Backup");
-                Console.WriteLine("  Download remote mail items to local filesystem");
-                Console.WriteLine();
+                defaultLogger.WriteLine("Mailbox Backup");
+                defaultLogger.WriteLine("  Download remote mail items to local filesystem");
+                defaultLogger.WriteLine();
                 parser.DisplayHelp(ConsoleHelper.GetBufferWidthOrDefault(80));
                 return ExitCodes.OK;
             }
@@ -83,42 +85,20 @@ namespace MailboxBackup
             client.Authenticate(username, password);
             client.Inbox.Open(FolderAccess.ReadOnly);
 
-            var folders = (from FolderNamespace ns in client.PersonalNamespaces
-                           from folder in client.GetFolders(ns)
-                           select folder).ToList();
-
-
-            Console.WriteLine($"Discovering...");
-            var selectedFolders = new List<IMailFolder>();
-
-            foreach (var folder in folders)
-            {
-                if (includeFolderFilter != null && !includeFolderFilter.IsMatch(folder.FullName))
-                {
-                    Console.WriteLine($"\tSkipping folder '{folder.FullName}', did not match the include filter");
-                    continue;
-                }
-
-                if (excludeFolderFilter != null && excludeFolderFilter.IsMatch(folder.FullName))
-                {
-                    Console.WriteLine($"\tSkipping folder '{folder.FullName}', matched the exclude filter");
-                    continue;
-                }
-
-                selectedFolders.Add(folder);
-            }
+            var folderView = RemoteFolderView.Build(defaultLogger, client, includeFolderFilter, excludeFolderFilter);
 
             var actionText = download ? "Downloading" : "Iterating";
-            Console.WriteLine($"{actionText}...");
+            defaultLogger.WriteLine($"{actionText}...");
 
-            for (int i = 0; i < selectedFolders.Count; i++)
+            var folderCounter = new EnumerableCounter(folderView.Folders.Count);
+            foreach(var folder in folderView.Folders)
             {
-                var folder = selectedFolders[i];
+                var folderProgressText = folderCounter.Next();
 
                 folder.Open(FolderAccess.ReadOnly);
                 var uids = folder.Search(SearchQuery.All);
 
-                Console.WriteLine($"{actionText} {uids.Count} items from folder '{folder.FullName}' ({i + 1}/{selectedFolders.Count})");
+                defaultLogger.WriteLine($"{actionText} {uids.Count} items from folder '{folder.FullName}' ({folderProgressText})");
                 var progress = new ConsoleProgressDisplay();
                 progress.Begin(uids.Count);
                 foreach (var uid in uids)
