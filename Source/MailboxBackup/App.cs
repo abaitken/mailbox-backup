@@ -29,6 +29,7 @@ namespace MailboxBackup
             parser.Describe("OUTPUTDIR", new[] { "-o", "--outdir" }, "Output", "Output directory", ArgumentConditions.TypeString | ArgumentConditions.Required);
             parser.Describe("FOLDER_INC", new[] { "-if" }, "Include pattern", "Include folder regex\nWhen supplied, only remote folder names matching the pattern will be downloaded. (Otherwise all folders will be downloaded)", ArgumentConditions.TypeString);
             parser.Describe("FOLDER_EXC", new[] { "-xf" }, "Exclude pattern", "Exclude folder regex\nWhen supplied, remote folders matching the pattern will not be downloaded", ArgumentConditions.TypeString);
+            parser.Describe("DOWNLOAD_NO", new[] { "--nodl" }, "No download", "Do not download", ArgumentConditions.IsFlag);
 
             var argumentErrors = parser.ParseArgs(args, out var argumentValues);
 
@@ -52,6 +53,7 @@ namespace MailboxBackup
             var server = argumentValues["SERVER"];
             var port = argumentValues.GetInt("SERVER_PORT");
             var output = argumentValues["OUTPUTDIR"];
+            var download = !argumentValues.GetBool("DOWNLOAD_NO");
 
             var includeFolderFilter = argumentValues.ContainsKey("FOLDER_INC") ? new Regex(argumentValues["FOLDER_INC"]) : null;
             var excludeFolderFilter = argumentValues.ContainsKey("FOLDER_EXC") ? new Regex(argumentValues["FOLDER_EXC"]) : null;
@@ -88,13 +90,23 @@ namespace MailboxBackup
                     folder.Open(FolderAccess.ReadOnly);
                     var uids = folder.Search(SearchQuery.All);
 
+                    if (download)
+                    {
                         Console.WriteLine($"Downloading {uids.Count} items from folder '{folder.Name}'");
+                    }
+                    else
+                    {
+                        Console.WriteLine($"Iterating {uids.Count} items from folder '{folder.Name}'");
+                    }
                     var progress = new ConsoleProgressDisplay();
                     progress.Begin(uids.Count);
                     foreach (var uid in uids)
                     {
                         progress.Update();
+
                         var message = folder.GetMessage(uid);
+                        if (download)
+                        {
 
                             var destinationFolder = organisationStrategy.Apply(message, folder);
                             if (!Directory.Exists(destinationFolder))
@@ -106,6 +118,7 @@ namespace MailboxBackup
                             if (!File.Exists(destination))
                                 message.WriteTo(destination);
                         }
+                    }
                     progress.End();
                     folder.Close();
                 }
