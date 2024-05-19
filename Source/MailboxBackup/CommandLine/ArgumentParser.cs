@@ -115,185 +115,15 @@ namespace MailboxBackup
                 throw new InvalidOperationException("Dependency argument keys not found!");
 
             // TODO : Check more conflicting conditions
-            if(adjustedConditions.HasFlag(ArgumentConditions.Options))
+            if (adjustedConditions.HasFlag(ArgumentConditions.Options))
             {
-                if(options == null || !options.Any())
+                if (options == null || !options.Any())
                     throw new InvalidOperationException("Options condition must have option values");
-                
-                if(!string.IsNullOrEmpty(defaultValue) && !options.Contains(defaultValue))
+
+                if (!string.IsNullOrEmpty(defaultValue) && !options.Contains(defaultValue))
                     throw new InvalidOperationException("Options condition default value must be present in valid options");
             }
             argumentDescriptions.Add(key, new ArgumentDescription(switches.ToList(), shorttext, helptext, (_ArgumentConditions)adjustedConditions, dependsOnKeys, defaultValue, options));
-        }
-
-        public class ArgumentValues
-        {
-            private readonly List<string> keys;
-            private readonly Dictionary<string, string> strings;
-            private readonly Dictionary<string, int> ints;
-            private readonly Dictionary<string, double> reals;
-            private readonly Dictionary<string, bool> bools;
-
-            public ArgumentValues()
-            {
-                this.keys = new List<String>();
-                this.strings = new Dictionary<string, string>();
-                this.ints = new Dictionary<string, int>();
-                this.reals = new Dictionary<string, double>();
-                this.bools = new Dictionary<string, bool>();
-            }
-
-            private void Add<T>(string key, T value, Dictionary<string, T> store)
-            {
-                if (ContainsKey(key))
-                {
-                    store[key] = value;
-                    return;
-                }
-
-                keys.Add(key);
-                store.Add(key, value);
-            }
-
-            internal void Add(string key, bool value)
-            {
-                Add(key, value, bools);
-            }
-
-            internal void Add(string key, int value)
-            {
-                Add(key, value, ints);
-            }
-
-            internal void Add(string key, double value)
-            {
-                Add(key, value, reals);
-            }
-
-            internal void Add(string key, string value)
-            {
-                Add(key, value, strings);
-            }
-
-            internal bool ContainsKey(string key)
-            {
-                return keys.Contains(key);
-            }
-
-            public string this[string key]
-            {
-                get { return strings[key]; }
-            }
-
-            public string GetString(string key, string defaultValue)
-            {
-                if (!ContainsKey(key))
-                    return defaultValue;
-
-                return this[key];
-            }
-
-            public string GetString(string key)
-            {
-                return this[key];
-            }
-
-            public bool GetBool(string key)
-            {
-                return bools[key];
-            }
-
-            public int GetInt(string key)
-            {
-                return ints[key];
-            }
-
-            internal double GetReal(string key)
-            {
-                return reals[key];
-            }
-        }
-
-        public enum ValidationErrorType
-        {
-            UnrecognisedSwitch,
-            IncorrectType,
-            FileSystemObjectNotFound,
-            RequiredArgMissing,
-            NoValue,
-            UnknownOption
-
-        }
-
-        public readonly struct ValidationError
-        {
-            public ValidationError(ValidationErrorType errorType, string value, string key)
-            {
-                ErrorType = errorType;
-                Value = value;
-                Key = key;
-            }
-
-            public ValidationErrorType ErrorType { get; }
-            public string Value { get; }
-            public string Key { get; }
-        }
-
-        class SpecialQueue<T>
-        {
-            private readonly List<T> inner;
-
-            public SpecialQueue(IEnumerable<T> initial)
-            {
-                this.inner = new List<T>(initial);
-            }
-
-            public int Count
-            {
-                get => inner.Count;
-            }
-
-            private T UnsafeDequeue()
-            {
-                var result = inner[0];
-                inner.RemoveAt(0);
-                return result;
-            }
-
-            public T Dequeue()
-            {
-                if (Count == 0)
-                    throw new InvalidOperationException();
-
-                return UnsafeDequeue();
-            }
-
-            public bool TryDequeue(out T value)
-            {
-                if (Count == 0)
-                {
-                    value = default;
-                    return false;
-                }
-                value = UnsafeDequeue();
-                return true;
-            }
-
-            public void PutFront(T value)
-            {
-                inner.Insert(0, value);
-            }
-
-            public void PutFront(params T[] value)
-            {
-                inner.InsertRange(0, value);
-            }
-
-            public void PutFront(IEnumerable<T> values)
-            {
-                inner.InsertRange(0, values);
-            }
-
         }
 
         public IEnumerable<ValidationError> ParseArgs(string[] args, out ArgumentValues argumentValues)
@@ -332,7 +162,7 @@ namespace MailboxBackup
                     // If no valid value, restore value to front of queue
                     if (!booleanValue.HasValue)
                     {
-                        if(value != null)
+                        if (value != null)
                             argQueue.PutFront(value);
                     }
 
@@ -456,7 +286,7 @@ namespace MailboxBackup
                 }
 
                 var value = argumentDescription.Value.DefaultValue;
-                if(string.IsNullOrEmpty(value))
+                if (string.IsNullOrEmpty(value))
                     continue;
 
                 if (conditions.HasFlag(_ArgumentConditions.TypeInteger))
