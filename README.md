@@ -2,6 +2,10 @@
 
 A small utility that will download cloud hosted e-mails for backup purposes.
 
+## Features
+
+- Download e-mails to local file system
+- Organise remote e-mails into dated folders
 
 ## Usage
 
@@ -55,6 +59,12 @@ Mailbox Backup
                      Options: None Auto SslOnConnect StartTls StartTlsWhenAvailable
                      Configuration key: TLSMODE
 
+ --remotemove        (Optional) Move and organise messages remotely on the server
+                     Configuration key: REMOTE_MOVE
+
+ -il TEXT            (Optional) IMAP log
+                     (Other forms: --imaplog)
+                     Configuration key: IMAP_LOG
 ```
 
 ## Example configuration
