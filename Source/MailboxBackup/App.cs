@@ -1,8 +1,6 @@
 ﻿using MailKit;
 using MailKit.Net.Imap;
 using MailKit.Search;
-using MailKit.Security;
-using System;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -33,9 +31,11 @@ namespace MailboxBackup
             parser.Describe("FOLDER_INC", new[] { "-if" }, "Include pattern", "Include folder regex\nWhen supplied, only remote folder names matching the pattern will be downloaded. (Otherwise all folders will be downloaded)", ArgumentConditions.TypeString);
             parser.Describe("FOLDER_EXC", new[] { "-xf" }, "Exclude pattern", "Exclude folder regex\nWhen supplied, remote folders matching the pattern will not be downloaded", ArgumentConditions.TypeString);
             parser.Describe("DOWNLOAD_NO", new[] { "--nodl" }, "No download", "Do not download", ArgumentConditions.IsFlag);
-            parser.Describe("TLSMODE", new[] { "--tlsmode" }, "TLS Options", "TLS Options", ArgumentConditions.Options, null, "SslOnConnect", new[] { "None", "Auto", "SslOnConnect", "StartTls", "StartTlsWhenAvailable" });
+            parser.Describe("TLSMODE", new[] { "--tlsmode" }, "TLS Options", "TLS Options", ArgumentConditions.Options, null, SecureSocketOptionArgumentHelper.DefaultValue, SecureSocketOptionArgumentHelper.Values);
             parser.Describe("REMOTE_MOVE", new[] { "--remotemove" }, "Organise remote mail", "Move and organise messages remotely on the server", ArgumentConditions.IsFlag);
             parser.Describe("IMAP_LOG", new[] { "-il", "--imaplog" }, "IMAP log", "IMAP log", ArgumentConditions.TypeString);
+            parser.Describe("REMOTE_HOME", new[] { "--remotehome" }, "Remote home", "Remote home path for organised file structure", ArgumentConditions.TypeString);
+            parser.Describe("LOCALORGSTRAT", new[] { "--localorgstrat" }, "Local org strategy", "Local downloaded file organisation strategy", ArgumentConditions.Options, null, LocalOrganisationStrategy.Strategies.First(), LocalOrganisationStrategy.Strategies);
 
             var argumentErrors = parser.ParseArgs(args, out var argumentValues);
 
@@ -60,9 +60,11 @@ namespace MailboxBackup
             var port = argumentValues.GetInt("SERVER_PORT");
             var output = argumentValues["OUTPUTDIR"];
             var download = !argumentValues.GetBool("DOWNLOAD_NO");
-            var tlsOption = ToSecureSocketOptions(argumentValues["TLSMODE"]);
+            var tlsOption = SecureSocketOptionArgumentHelper.ToSecureSocketOptions(argumentValues["TLSMODE"]);
             var remoteMove = argumentValues.GetBool("REMOTE_MOVE");
+            var remoteHome = argumentValues.GetString("REMOTE_HOME", string.Empty);
             var imaplog = argumentValues.GetString("IMAP_LOG", null);
+            var localOrgStrategyName = argumentValues["LOCALORGSTRAT"];
 
             var includeFolderFilter = argumentValues.ContainsKey("FOLDER_INC") ? new Regex(argumentValues["FOLDER_INC"]) : null;
             var excludeFolderFilter = argumentValues.ContainsKey("FOLDER_EXC") ? new Regex(argumentValues["FOLDER_EXC"]) : null;
@@ -72,9 +74,9 @@ namespace MailboxBackup
                 fileSystem.CreateDirectory(output);
 
             var filenamingStrategy = new IdNamingStrategy();
-            var localOrganisationStrategy = new DatedFolderStructureOrganisationStrategy(output);
+            LocalOrganisationStrategy localOrganisationStrategy = LocalOrganisationStrategy.Create(localOrgStrategyName, output);
             RemoteOrganisationStrategy remoteOrganisationStrategy = remoteMove 
-                ? new DatedFolderStructureRemoteOrganisationStrategy() 
+                ? new DatedFolderStructureRemoteOrganisationStrategy(remoteHome) 
                 : new PreserveRemoteOrganisationStrategy();
 
             using var client = imaplog == null 
@@ -139,20 +141,6 @@ namespace MailboxBackup
 
             client.Disconnect(true);
             return ExitCodes.OK;
-        }
-
-        private static SecureSocketOptions ToSecureSocketOptions(string value)
-        {
-            return value switch
-            {
-                "None" => SecureSocketOptions.None,
-                "Auto" => SecureSocketOptions.Auto,
-                "SslOnConnect" => SecureSocketOptions.SslOnConnect,
-                "StartTls" => SecureSocketOptions.StartTls,
-                "StartTlsWhenAvailable" => SecureSocketOptions.StartTlsWhenAvailable,
-                _ => throw new ArgumentOutOfRangeException(nameof(value)),
-            };
-
         }
 
     }
