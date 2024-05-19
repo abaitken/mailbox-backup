@@ -5,6 +5,6 @@ namespace MailboxBackup
 {
     abstract class RemoteOrganisationStrategy
     {
-        public abstract IMailFolder Apply(MimeMessage message, IMailFolder currentFolder);
+        public abstract string Apply(MimeMessage message, IMailFolder currentFolder);
     }
 }

@@ -107,10 +107,16 @@ namespace MailboxBackup
 
                     var message = folder.GetMessage(uid);
 
-                    var expectedFolder = remoteOrganisationStrategy.Apply(message, folder);
-                    if(expectedFolder != null)
+                    var remotePath = remoteOrganisationStrategy.Apply(message, folder);
+                    if(remotePath != null && !folder.FullName.Equals(remotePath))
                     {
-                        folder.MoveTo(uid, expectedFolder);
+                        var target = folderView.Find(remotePath);
+                        if(target == null)
+                            target = folderView.Create(remotePath);
+
+                        folder.Open(FolderAccess.ReadWrite);
+                        folder.MoveTo(uid, target);
+                        //folder.Close();
                     }
 
                     if (download)

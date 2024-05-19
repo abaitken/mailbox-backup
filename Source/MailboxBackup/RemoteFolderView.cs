@@ -1,7 +1,10 @@
 using MailKit;
 using MailKit.Net.Imap;
+using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Text;
 using System.Text.RegularExpressions;
 
 namespace MailboxBackup
@@ -39,6 +42,30 @@ namespace MailboxBackup
             return new RemoteFolderView(toplevel, folders, selectedFolders);
         }
 
+        private const char PathSeperator = '/';
+
+        public static string Combine(string left, params string[] other)
+        {
+            var builder = new StringBuilder();
+            builder.Append(left);
+
+            foreach(var item in other)
+            {
+                if(builder.Length != 0 && builder[^1] != PathSeperator)
+                    builder.Append(PathSeperator);
+                
+                builder.Append(item);
+            }
+
+            return builder.ToString();
+        }
+
+        public static string ConvertToFileSystemPath(string remotePath)
+        {
+            var pathName  = remotePath.Replace(PathSeperator, Path.DirectorySeparatorChar);
+            return pathName;
+        }
+
         private readonly IMailFolder topLevel;
         private readonly List<IMailFolder> allFolders;
         private readonly List<IMailFolder> selectedFolders;
@@ -53,6 +80,32 @@ namespace MailboxBackup
         public IReadOnlyCollection<IMailFolder> Folders
         {
             get => selectedFolders;
+        }
+
+        public IMailFolder Find(string remotePath)
+        {
+            var result = allFolders.FirstOrDefault(o => o.FullName.Equals(remotePath));
+            return result;
+        }
+
+        public IMailFolder Create(string remotePath)
+        {
+            var folders = remotePath.Split(PathSeperator);
+            var parent = topLevel;
+            foreach (var item in folders)
+            {
+                var nextLevel = Find(Combine(parent.FullName, item));
+
+                if(nextLevel == null)
+                {
+                    nextLevel = parent.Create(item, true);
+                    allFolders.Add(nextLevel);
+                }
+
+                parent = nextLevel;
+            }
+
+            return parent;
         }
     }
 }

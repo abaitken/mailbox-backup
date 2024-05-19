@@ -5,9 +5,15 @@ namespace MailboxBackup
 {
     class DatedFolderStructureRemoteOrganisationStrategy : RemoteOrganisationStrategy
     {
-        public override IMailFolder Apply(MimeMessage message, IMailFolder currentFolder)
+        public override string Apply(MimeMessage message, IMailFolder currentFolder)
         {
-            throw new System.NotImplementedException();
+            var messageYear = message.Date.Year.ToString();
+
+            if(currentFolder.FullName.StartsWith(messageYear))
+                return currentFolder.FullName;
+
+            var remotePath = RemoteFolderView.Combine(messageYear, currentFolder.FullName);
+            return remotePath;
         }
     }
 }
