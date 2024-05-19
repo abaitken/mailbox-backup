@@ -3,6 +3,7 @@ using MailKit.Net.Imap;
 using MailKit.Search;
 using MailKit.Security;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -76,30 +77,38 @@ namespace MailboxBackup
                                from folder in client.GetFolders(ns)
                                select folder).ToList();
 
+
+                Console.WriteLine($"Discovering...");
+                var selectedFolders = new List<IMailFolder>();
+
                 foreach (var folder in folders)
                 {
                     if (includeFolderFilter != null && !includeFolderFilter.IsMatch(folder.Name))
                     {
-                        Console.WriteLine($"Skipping folder '{folder.Name}', did not match the include filter");
+                        Console.WriteLine($"\tSkipping folder '{folder.Name}', did not match the include filter");
                         continue;
                     }
 
                     if (excludeFolderFilter != null && excludeFolderFilter.IsMatch(folder.Name))
                     {
-                        Console.WriteLine($"Skipping folder '{folder.Name}', matched the exclude filter");
+                        Console.WriteLine($"\tSkipping folder '{folder.Name}', matched the exclude filter");
                         continue;
                     }
+
+                    selectedFolders.Add(folder);
+                }
+
+                var actionText = download ? "Downloading" : "Iterating";
+                Console.WriteLine($"{actionText}...");
+
+                for (int i = 0; i < selectedFolders.Count; i++)
+                {
+                    var folder = selectedFolders[i];
+
                     folder.Open(FolderAccess.ReadOnly);
                     var uids = folder.Search(SearchQuery.All);
 
-                    if (download)
-                    {
-                        Console.WriteLine($"Downloading {uids.Count} items from folder '{folder.Name}'");
-                    }
-                    else
-                    {
-                        Console.WriteLine($"Iterating {uids.Count} items from folder '{folder.Name}'");
-                    }
+                    Console.WriteLine($"{actionText} {uids.Count} items from folder '{folder.Name}' ({i + 1}/{selectedFolders.Count})");
                     var progress = new ConsoleProgressDisplay();
                     progress.Begin(uids.Count);
                     foreach (var uid in uids)
@@ -109,7 +118,6 @@ namespace MailboxBackup
                         var message = folder.GetMessage(uid);
                         if (download)
                         {
-
                             var destinationFolder = organisationStrategy.Apply(message, folder);
                             if (!Directory.Exists(destinationFolder))
                                 Directory.CreateDirectory(destinationFolder);
