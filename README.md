@@ -76,6 +76,9 @@ Mailbox Backup
                            Options: FollowFolderStructure DatedFolderStructure
                            Configuration key: LOCALORGSTRAT
 
+ --filterage ###           (Optional) Filter e-mails older than provided age (in days)
+                           Default value: 1
+                           Configuration key: FILTER_AGE
 ```
 
 ## Example configuration

@@ -1,6 +1,7 @@
 ﻿using MailKit;
 using MailKit.Net.Imap;
 using MailKit.Search;
+using System;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -36,6 +37,7 @@ namespace MailboxBackup
             parser.Describe("IMAP_LOG", new[] { "-il", "--imaplog" }, "IMAP log", "IMAP log", ArgumentConditions.TypeString);
             parser.Describe("REMOTE_HOME", new[] { "--remotehome" }, "Remote home", "Remote home path for organised file structure", ArgumentConditions.TypeString);
             parser.Describe("LOCALORGSTRAT", new[] { "--localorgstrat" }, "Local org strategy", "Local downloaded file organisation strategy", ArgumentConditions.Options, null, LocalOrganisationStrategy.Strategies.First(), LocalOrganisationStrategy.Strategies);
+            parser.Describe("FILTER_AGE", new[] { "--filterage" }, "Filter e-mail age", "Filter e-mails older than provided age (in days)", ArgumentConditions.TypeInteger, null, "1");
 
             var argumentErrors = parser.ParseArgs(args, out var argumentValues);
 
@@ -65,6 +67,7 @@ namespace MailboxBackup
             var remoteHome = argumentValues.GetString("REMOTE_HOME", string.Empty);
             var imaplog = argumentValues.GetString("IMAP_LOG", null);
             var localOrgStrategyName = argumentValues["LOCALORGSTRAT"];
+            var filterAge = argumentValues.GetInt("FILTER_AGE");
 
             var includeFolderFilter = argumentValues.ContainsKey("FOLDER_INC") ? new Regex(argumentValues["FOLDER_INC"]) : null;
             var excludeFolderFilter = argumentValues.ContainsKey("FOLDER_EXC") ? new Regex(argumentValues["FOLDER_EXC"]) : null;
@@ -78,6 +81,8 @@ namespace MailboxBackup
             RemoteOrganisationStrategy remoteOrganisationStrategy = remoteMove 
                 ? new DatedFolderStructureRemoteOrganisationStrategy(remoteHome) 
                 : new PreserveRemoteOrganisationStrategy();
+
+            MailItemCondition messageCondition = new MessageDateAge(filterAge, DateTime.Now);
 
             using var client = imaplog == null 
                 ? new ImapClient()
@@ -108,6 +113,9 @@ namespace MailboxBackup
                     progress.Update();
 
                     var message = folder.GetMessage(uid);
+
+                    if(!messageCondition.IsValidItem(message))
+                        continue;
 
                     var remotePath = remoteOrganisationStrategy.Apply(message, folder);
                     if(remotePath != null && !folder.FullName.Equals(remotePath))
