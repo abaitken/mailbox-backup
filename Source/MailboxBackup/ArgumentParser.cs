@@ -534,7 +534,7 @@ namespace MailboxBackup
                     ? "\nDefault value: " + item.Value.DefaultValue
                     : string.Empty;
 
-                var options = item.Value.Conditions.HasFlag(_ArgumentConditions.Optional)
+                var options = item.Value.Conditions.HasFlag(_ArgumentConditions.Options)
                     ? "\nOptions: " + item.Value.Options.Combine(" ")
                     : string.Empty;
 

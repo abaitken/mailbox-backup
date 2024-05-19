@@ -34,7 +34,7 @@ namespace MailboxBackup
 
             var argumentErrors = parser.ParseArgs(args, out var argumentValues);
 
-            if (argumentValues.ContainsKey("HELP"))
+            if (argumentValues.ContainsKey("HELP") && argumentValues.GetBool("HELP"))
             {
                 Console.WriteLine("Mailbox Backup");
                 Console.WriteLine("  Download remote mail items to local filesystem");
