@@ -1,0 +1,19 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<Project>
+  <Import Project="Source/VersioningInformation.props"/>
+  
+  <PropertyGroup>
+    <Configuration>Release</Configuration>
+    <ProjectName>MailboxBackup</ProjectName>
+    <Project>Source/$(ProjectName)/$(ProjectName).csproj</Project>
+    <TargetFramework>net6</TargetFramework>
+  </PropertyGroup>
+  
+  <Target Name="Publish">
+    <Exec Command="dotnet publish $(Project) -o publish\win-x64 -r win-x64 --sc -c $(Configuration)" />
+    <Exec Command="dotnet publish $(Project) -o publish\linux-arm64 -r linux-arm64 --sc -c $(Configuration)" />
+
+    <Exec Command="7z a -r -tzip $(ProjectName)-$(FileVersion)-$(TargetFramework)-win-x64-Portable.zip win-x64/" WorkingDirectory="publish" />
+    <Exec Command="7z a -r -tzip $(ProjectName)-$(FileVersion)-$(TargetFramework)-linux-arm64-Portable.zip linux-arm64/" WorkingDirectory="publish" /> 
+  </Target>
+</Project>

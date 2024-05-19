@@ -13,5 +13,5 @@
   <ItemGroup>
     <Folder Include="Properties\" />
   </ItemGroup>
-  <Import Project="VersioningInformation.props"/>
+  <Import Project="../VersioningInformation.props"/>
 </Project>

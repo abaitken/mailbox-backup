@@ -6,3 +6,4 @@ packages
 /Source/MailboxBackup/Properties/launchSettings.json
 .vscode
 *.log
+/publish
