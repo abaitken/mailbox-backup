@@ -114,14 +114,15 @@ public class ArgumentParserTests
         {
             var errors = parser.ParseArgs(new string[0], out var values);
             Assert.AreEqual(0, errors.Count(), "4");
-            Assert.IsFalse(values.ContainsKey("FLAG"), "4");
+            Assert.IsTrue(values.ContainsKey("FLAG"), "4");
+            Assert.IsFalse(values.GetBool("FLAG"), "4");
         }
         // Test 5
         {
             var errors = parser.ParseArgs(new[] { "-x", "asdasd" }, out var values);
-            Assert.AreEqual(1, errors.Count(), "3");
-            Assert.IsTrue(values.ContainsKey("FLAG"), "3");
-            Assert.IsTrue(values.GetBool("FLAG"), "3");
+            Assert.AreEqual(1, errors.Count(), "5");
+            Assert.IsTrue(values.ContainsKey("FLAG"), "5");
+            Assert.IsTrue(values.GetBool("FLAG"), "5");
             Assert.AreEqual(ValidationErrorType.UnrecognisedSwitch, errors.First().ErrorType);
             Assert.AreEqual("asdasd", errors.First().Value);
         }

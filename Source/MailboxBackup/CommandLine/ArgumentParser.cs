@@ -287,7 +287,14 @@ namespace MailboxBackup
 
                 var value = argumentDescription.Value.DefaultValue;
                 if (string.IsNullOrEmpty(value))
+                {
+                    if (conditions.HasFlag(_ArgumentConditions.IsFlag))
+                    {
+                        result.Add(argumentDescription.Key, false);
+                        continue;
+                    }
                     continue;
+                }
 
                 if (conditions.HasFlag(_ArgumentConditions.TypeInteger))
                 {
