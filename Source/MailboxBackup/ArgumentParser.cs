@@ -311,10 +311,11 @@ namespace MailboxBackup
                     // If there is no value, treat as it has no value
                     var booleanValue = (value == null) ? null : ToBoolean(value);
 
-                    // If valid value follows, dequeue the next value
-                    if (booleanValue.HasValue)
+                    // If no valid value, restore value to front of queue
+                    if (!booleanValue.HasValue)
                     {
-                        argQueue.PutFront(value);
+                        if(value != null)
+                            argQueue.PutFront(value);
                     }
 
                     // Use value is present or revert to true if there is no value
