@@ -62,32 +62,57 @@ namespace MailboxBackup
             get { return strings[key]; }
         }
 
-        public string GetString(string key, string defaultValue)
+        private T Get<T>(string key, Dictionary<string, T> store)
+        {
+            return store[key];
+        }
+
+        private T Get<T>(string key, T defaultValue, Dictionary<string, T> store)
         {
             if (!ContainsKey(key))
                 return defaultValue;
 
-            return this[key];
+            return store[key];
+        }
+
+        public string GetString(string key, string defaultValue)
+        {
+            return Get(key, defaultValue, strings);
         }
 
         public string GetString(string key)
         {
-            return this[key];
+            return Get(key, strings);
+        }
+
+        public bool GetBool(string key, bool defaultValue)
+        {
+            return Get(key, defaultValue, bools);
         }
 
         public bool GetBool(string key)
         {
-            return bools[key];
+            return Get(key, bools);
+        }
+
+        public int GetInt(string key, int defaultValue)
+        {
+            return Get(key, defaultValue, ints);
         }
 
         public int GetInt(string key)
         {
-            return ints[key];
+            return Get(key, ints);
+        }
+
+        internal double GetReal(string key, double defaultValue)
+        {
+            return Get(key, defaultValue, reals);
         }
 
         internal double GetReal(string key)
         {
-            return reals[key];
+            return Get(key, reals);
         }
     }
 }
