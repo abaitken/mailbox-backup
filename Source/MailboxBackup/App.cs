@@ -30,6 +30,7 @@ namespace MailboxBackup
             parser.Describe("FOLDER_INC", new[] { "-if" }, "Include pattern", "Include folder regex\nWhen supplied, only remote folder names matching the pattern will be downloaded. (Otherwise all folders will be downloaded)", ArgumentConditions.TypeString);
             parser.Describe("FOLDER_EXC", new[] { "-xf" }, "Exclude pattern", "Exclude folder regex\nWhen supplied, remote folders matching the pattern will not be downloaded", ArgumentConditions.TypeString);
             parser.Describe("DOWNLOAD_NO", new[] { "--nodl" }, "No download", "Do not download", ArgumentConditions.IsFlag);
+            parser.Describe("TLSMODE", new[] { "--tlsmode" }, "TLS Options", "TLS Options", ArgumentConditions.Options, null, "SslOnConnect", new[] { "None", "Auto", "SslOnConnect", "StartTls", "StartTlsWhenAvailable" });
 
             var argumentErrors = parser.ParseArgs(args, out var argumentValues);
 
@@ -54,6 +55,7 @@ namespace MailboxBackup
             var port = argumentValues.GetInt("SERVER_PORT");
             var output = argumentValues["OUTPUTDIR"];
             var download = !argumentValues.GetBool("DOWNLOAD_NO");
+            var tlsOption = ToSecureSocketOptions(argumentValues["TLSMODE"]);
 
             var includeFolderFilter = argumentValues.ContainsKey("FOLDER_INC") ? new Regex(argumentValues["FOLDER_INC"]) : null;
             var excludeFolderFilter = argumentValues.ContainsKey("FOLDER_EXC") ? new Regex(argumentValues["FOLDER_EXC"]) : null;
@@ -66,7 +68,7 @@ namespace MailboxBackup
 
             using (var client = new ImapClient())
             {
-                client.Connect(server, port, SecureSocketOptions.SslOnConnect);
+                client.Connect(server, port, tlsOption);
                 client.Authenticate(username, password);
                 client.Inbox.Open(FolderAccess.ReadOnly);
 
@@ -128,5 +130,20 @@ namespace MailboxBackup
             }
             return ExitCodes.OK;
         }
+
+        private static SecureSocketOptions ToSecureSocketOptions(string value)
+        {
+            return value switch
+            {
+                "None" => SecureSocketOptions.None,
+                "Auto" => SecureSocketOptions.Auto,
+                "SslOnConnect" => SecureSocketOptions.SslOnConnect,
+                "StartTls" => SecureSocketOptions.StartTls,
+                "StartTlsWhenAvailable" => SecureSocketOptions.StartTlsWhenAvailable,
+                _ => throw new ArgumentOutOfRangeException(nameof(value)),
+            };
+
+        }
+
     }
 }

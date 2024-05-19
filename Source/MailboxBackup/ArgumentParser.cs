@@ -31,7 +31,8 @@ namespace MailboxBackup
             ExistingDir = IsFlag << 1,
             ExistingFile = ExistingDir << 1,
             Help = ExistingFile << 1,
-            ArgsFileSource = Help << 1
+            ArgsFileSource = Help << 1,
+            Options = ArgsFileSource << 1
         }
 
         [Flags]
@@ -49,12 +50,14 @@ namespace MailboxBackup
             ExistingDir = _ArgumentConditions.ExistingDir,
             ExistingFile = _ArgumentConditions.ExistingFile,
             Help = _ArgumentConditions.Help | IsFlag,
-            ArgsFileSource = _ArgumentConditions.ArgsFileSource | ExistingFile | TypeString
+            ArgsFileSource = _ArgumentConditions.ArgsFileSource | ExistingFile | TypeString,
+            Options = _ArgumentConditions.Options | TypeString
+
         }
 
         private readonly struct ArgumentDescription
         {
-            public ArgumentDescription(IEnumerable<string> switches, string shorttext, string helptext, _ArgumentConditions conditions, IEnumerable<string> dependsOnKeys, string defaultValue)
+            public ArgumentDescription(IEnumerable<string> switches, string shorttext, string helptext, _ArgumentConditions conditions, IEnumerable<string> dependsOnKeys, string defaultValue, IEnumerable<string> options)
             {
                 if (switches == null || !switches.Any())
                     throw new ArgumentException("Expected switches");
@@ -74,7 +77,7 @@ namespace MailboxBackup
                 Conditions = conditions;
                 DependsOnKeys = dependsOnKeys;
                 DefaultValue = defaultValue;
-
+                Options = options;
             }
 
             public IEnumerable<string> Switches { get; }
@@ -83,7 +86,7 @@ namespace MailboxBackup
             public _ArgumentConditions Conditions { get; }
             public IEnumerable<string> DependsOnKeys { get; }
             public string DefaultValue { get; }
-
+            public IEnumerable<string> Options { get; }
         }
 
         internal ArgumentParser(IFileSystem fileSystem)
@@ -97,7 +100,7 @@ namespace MailboxBackup
             this.argumentDescriptions = new Dictionary<string, ArgumentDescription>();
         }
 
-        public void Describe(string key, IEnumerable<string> switches, string shorttext, string helptext, ArgumentConditions conditions, IEnumerable<string> dependsOnKeys = null, string defaultValue = null)
+        public void Describe(string key, IEnumerable<string> switches, string shorttext, string helptext, ArgumentConditions conditions, IEnumerable<string> dependsOnKeys = null, string defaultValue = null, IEnumerable<string> options = null)
         {
             if (string.IsNullOrEmpty(key))
                 throw new ArgumentNullException(nameof(key), "Expected key");
@@ -111,8 +114,16 @@ namespace MailboxBackup
             if (!dependsOnKeys.All(o => argumentDescriptions.ContainsKey(o)) || (dependsOnKeys.Any() && argumentDescriptions.Count == 0))
                 throw new InvalidOperationException("Dependency argument keys not found!");
 
-            // TODO : Check conflicting conditions
-            argumentDescriptions.Add(key, new ArgumentDescription(switches.ToList(), shorttext, helptext, (_ArgumentConditions)adjustedConditions, dependsOnKeys, defaultValue));
+            // TODO : Check more conflicting conditions
+            if(adjustedConditions.HasFlag(ArgumentConditions.Options))
+            {
+                if(options == null || !options.Any())
+                    throw new InvalidOperationException("Options condition must have option values");
+                
+                if(!string.IsNullOrEmpty(defaultValue) && !options.Contains(defaultValue))
+                    throw new InvalidOperationException("Options condition default value must be present in valid options");
+            }
+            argumentDescriptions.Add(key, new ArgumentDescription(switches.ToList(), shorttext, helptext, (_ArgumentConditions)adjustedConditions, dependsOnKeys, defaultValue, options));
         }
 
         public class ArgumentValues
@@ -182,6 +193,11 @@ namespace MailboxBackup
                 return this[key];
             }
 
+            public string GetString(string key)
+            {
+                return this[key];
+            }
+
             public bool GetBool(string key)
             {
                 return bools[key];
@@ -204,7 +220,9 @@ namespace MailboxBackup
             IncorrectType,
             FileSystemObjectNotFound,
             RequiredArgMissing,
-            NoValue
+            NoValue,
+            UnknownOption
+
         }
 
         public readonly struct ValidationError
@@ -372,13 +390,20 @@ namespace MailboxBackup
                 }
 
                 // Assumed to be a String...
-
+                if (conditions.HasFlag(_ArgumentConditions.Options))
+                {
+                    if (!argumentDescription.Value.Options.Contains(value))
+                    {
+                        errors.Add(new ValidationError(ValidationErrorType.UnknownOption, value, argumentDescription.Key));
+                        continue;
+                    }
+                }
 
                 if (conditions.HasFlag(_ArgumentConditions.ExistingDir))
                 {
                     if (!fileSystem.DirectoryExists(value))
                     {
-                        errors.Add(new ValidationError(ValidationErrorType.FileSystemObjectNotFound, item, argumentDescription.Key));
+                        errors.Add(new ValidationError(ValidationErrorType.FileSystemObjectNotFound, value, argumentDescription.Key));
                         continue;
                     }
                 }
@@ -387,7 +412,7 @@ namespace MailboxBackup
                 {
                     if (!fileSystem.FileExists(value))
                     {
-                        errors.Add(new ValidationError(ValidationErrorType.FileSystemObjectNotFound, item, argumentDescription.Key));
+                        errors.Add(new ValidationError(ValidationErrorType.FileSystemObjectNotFound, value, argumentDescription.Key));
                         continue;
                     }
                 }
@@ -497,16 +522,20 @@ namespace MailboxBackup
             {
                 switches.Add(item.Value.Switches.First() + GetSwitchValueText(item.Value.Conditions));
 
-                var otherForms = item.Value.Switches.Skip(1).Any()
-                    ? "\n" + "(Other forms: " + item.Value.Switches.Skip(1).Combine(" ") + ")"
-                    : string.Empty;
-
                 var optional = item.Value.Conditions.HasFlag(_ArgumentConditions.Optional)
                     ? "(Optional) "
                     : string.Empty;
 
+                var otherForms = item.Value.Switches.Skip(1).Any()
+                    ? "\n" + "(Other forms: " + item.Value.Switches.Skip(1).Combine(" ") + ")"
+                    : string.Empty;
+
                 var defaultValue = !string.IsNullOrEmpty(item.Value.DefaultValue)
                     ? "\nDefault value: " + item.Value.DefaultValue
+                    : string.Empty;
+
+                var options = item.Value.Conditions.HasFlag(_ArgumentConditions.Optional)
+                    ? "\nOptions: " + item.Value.Options.Combine(" ")
                     : string.Empty;
 
                 var dependsOnList = new StringBuilder();
@@ -523,7 +552,7 @@ namespace MailboxBackup
 
                 var configurationKey = "\nConfiguration key: " + item.Key;
 
-                helptext.Add(optional + item.Value.Helptext + dependsOn + otherForms + defaultValue + configurationKey);
+                helptext.Add(optional + item.Value.Helptext + dependsOn + otherForms + defaultValue + options + configurationKey);
             }
 
             var maxSwitchWidth = switches.Max(o => o.Length);
@@ -560,6 +589,9 @@ namespace MailboxBackup
             if (conditions.HasFlag(_ArgumentConditions.IsFlag))
                 return string.Empty;
 
+            if (conditions.HasFlag(_ArgumentConditions.Options))
+                return " OPTION";
+
             if (conditions.HasFlag(_ArgumentConditions.ExistingDir))
                 return " DIR";
 
@@ -589,10 +621,11 @@ namespace MailboxBackup
             var argumentDescription = argumentDescriptions[key];
             return errorType switch
             {
-                ValidationErrorType.IncorrectType => $"Incorrect value type provided for '{argumentDescription.Shorttext}' ({argumentDescription.Switches.First()})",
-                ValidationErrorType.FileSystemObjectNotFound => $"File or directory for argument '{argumentDescription.Shorttext}' ({argumentDescription.Switches.First()}) not found",
+                ValidationErrorType.IncorrectType => $"Incorrect value type '{value}' provided for '{argumentDescription.Shorttext}' ({argumentDescription.Switches.First()})",
+                ValidationErrorType.FileSystemObjectNotFound => $"File or directory '{value}' for argument '{argumentDescription.Shorttext}' ({argumentDescription.Switches.First()}) not found",
                 ValidationErrorType.RequiredArgMissing => $"Required argument '{argumentDescription.Shorttext}' ({argumentDescription.Switches.First()}) missing",
                 ValidationErrorType.NoValue => $"Argument '{argumentDescription.Shorttext}' ({argumentDescription.Switches.First()}) has no value",
+                ValidationErrorType.UnknownOption => $"Unexpected option '{value}' provided for argument '{argumentDescription.Shorttext}' ({argumentDescription.Switches.First()})",
                 _ => throw new ArgumentOutOfRangeException(nameof(errorType)),
             };
         }
