@@ -80,7 +80,7 @@ public class ArgumentParserTests
 
         var errors = parser.ParseArgs(new[] { "-h" }, out var values);
         Assert.AreEqual(1, errors.Count());
-        Assert.AreEqual(ArgumentParser.ValidationErrorType.RequiredArgMissing, errors.First().ErrorType);
+        Assert.AreEqual(ValidationErrorType.RequiredArgMissing, errors.First().ErrorType);
     }
 
     [TestMethod]
@@ -122,7 +122,7 @@ public class ArgumentParserTests
             Assert.AreEqual(1, errors.Count(), "3");
             Assert.IsTrue(values.ContainsKey("FLAG"), "3");
             Assert.IsTrue(values.GetBool("FLAG"), "3");
-            Assert.AreEqual(ArgumentParser.ValidationErrorType.UnrecognisedSwitch, errors.First().ErrorType);
+            Assert.AreEqual(ValidationErrorType.UnrecognisedSwitch, errors.First().ErrorType);
             Assert.AreEqual("asdasd", errors.First().Value);
         }
     }
@@ -138,7 +138,7 @@ public class ArgumentParserTests
             var errors = parser.ParseArgs(new[] { "-i" }, out var values);
             Assert.AreEqual(1, errors.Count(), "1");
             Assert.IsFalse(values.ContainsKey("INT"), "1");
-            Assert.AreEqual(ArgumentParser.ValidationErrorType.NoValue, errors.First().ErrorType, "1");
+            Assert.AreEqual(ValidationErrorType.NoValue, errors.First().ErrorType, "1");
         }
         // Test 2
         {
@@ -152,7 +152,7 @@ public class ArgumentParserTests
             var errors = parser.ParseArgs(new[] { "-i", "6.9" }, out var values);
             Assert.AreEqual(1, errors.Count(), "3");
             Assert.IsFalse(values.ContainsKey("INT"), "3");
-            Assert.AreEqual(ArgumentParser.ValidationErrorType.IncorrectType, errors.First().ErrorType, "3");
+            Assert.AreEqual(ValidationErrorType.IncorrectType, errors.First().ErrorType, "3");
             Assert.AreEqual("6.9", errors.First().Value, "3");
         }
         // Test 4
@@ -160,7 +160,7 @@ public class ArgumentParserTests
             var errors = parser.ParseArgs(new[] { "-i", "sdafsd" }, out var values);
             Assert.AreEqual(1, errors.Count(), "4");
             Assert.IsFalse(values.ContainsKey("INT"), "4");
-            Assert.AreEqual(ArgumentParser.ValidationErrorType.IncorrectType, errors.First().ErrorType, "4");
+            Assert.AreEqual(ValidationErrorType.IncorrectType, errors.First().ErrorType, "4");
             Assert.AreEqual("sdafsd", errors.First().Value, "4");
         }
     }
@@ -176,7 +176,7 @@ public class ArgumentParserTests
             var errors = parser.ParseArgs(new[] { "-r" }, out var values);
             Assert.AreEqual(1, errors.Count(), "1");
             Assert.IsFalse(values.ContainsKey("REAL"), "1");
-            Assert.AreEqual(ArgumentParser.ValidationErrorType.NoValue, errors.First().ErrorType, "1");
+            Assert.AreEqual(ValidationErrorType.NoValue, errors.First().ErrorType, "1");
         }
         // Test 2
         {
@@ -197,7 +197,7 @@ public class ArgumentParserTests
             var errors = parser.ParseArgs(new[] { "-r", "sdafsd" }, out var values);
             Assert.AreEqual(1, errors.Count(), "4");
             Assert.IsFalse(values.ContainsKey("REAL"), "4");
-            Assert.AreEqual(ArgumentParser.ValidationErrorType.IncorrectType, errors.First().ErrorType, "4");
+            Assert.AreEqual(ValidationErrorType.IncorrectType, errors.First().ErrorType, "4");
             Assert.AreEqual("sdafsd", errors.First().Value, "4");
         }
     }
@@ -213,7 +213,7 @@ public class ArgumentParserTests
             var errors = parser.ParseArgs(new[] { "-b" }, out var values);
             Assert.AreEqual(1, errors.Count(), "1");
             Assert.IsFalse(values.ContainsKey("BOOL"), "1");
-            Assert.AreEqual(ArgumentParser.ValidationErrorType.NoValue, errors.First().ErrorType, "1");
+            Assert.AreEqual(ValidationErrorType.NoValue, errors.First().ErrorType, "1");
         }
         // Test 2
         {
@@ -234,7 +234,7 @@ public class ArgumentParserTests
             var errors = parser.ParseArgs(new[] { "-b", "sdafsd" }, out var values);
             Assert.AreEqual(1, errors.Count(), "4");
             Assert.IsFalse(values.ContainsKey("BOOL"), "4");
-            Assert.AreEqual(ArgumentParser.ValidationErrorType.IncorrectType, errors.First().ErrorType, "4");
+            Assert.AreEqual(ValidationErrorType.IncorrectType, errors.First().ErrorType, "4");
             Assert.AreEqual("sdafsd", errors.First().Value, "4");
         }
     }
@@ -251,7 +251,7 @@ public class ArgumentParserTests
             var errors = parser.ParseArgs(new[] { "-o" }, out var values);
             Assert.AreEqual(1, errors.Count(), "1");
             Assert.IsFalse(values.ContainsKey("OPT"), "1");
-            Assert.AreEqual(ArgumentParser.ValidationErrorType.NoValue, errors.First().ErrorType, "1");
+            Assert.AreEqual(ValidationErrorType.NoValue, errors.First().ErrorType, "1");
         }
         // Test 2
         {
@@ -265,7 +265,7 @@ public class ArgumentParserTests
             var errors = parser.ParseArgs(new[] { "-o", "D" }, out var values);
             Assert.AreEqual(1, errors.Count(), "3");
             Assert.IsFalse(values.ContainsKey("OPT"), "3");
-            Assert.AreEqual(ArgumentParser.ValidationErrorType.UnknownOption, errors.First().ErrorType);
+            Assert.AreEqual(ValidationErrorType.UnknownOption, errors.First().ErrorType);
             Assert.AreEqual("D", errors.First().Value);
         }
         // Test 4
