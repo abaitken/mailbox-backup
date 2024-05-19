@@ -56,3 +56,17 @@ Mailbox Backup
                      Configuration key: TLSMODE
 
 ```
+
+## Example configuration
+
+Use the configuration key values from above as the property names for a JSON object.
+
+```
+{
+    "HELP": false,
+    "USER": "USERNAME HERE",
+    "SERVER" : "server address here",
+    "DOWNLOAD_NO": false,
+    "OUTPUTDIR": "path\\to\\output\\directory"
+}
+```
