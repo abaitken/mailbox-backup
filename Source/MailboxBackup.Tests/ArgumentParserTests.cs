@@ -5,62 +5,53 @@ using MailboxBackup;
 public class ArgumentParserTests
 {
     [TestMethod]
-    [ExpectedException(typeof(ArgumentNullException))]
     public void KeyIsRequired1()
     {
         var parser = new ArgumentParser();
-        parser.Describe(null, new[] { "-h", "-?" }, "help", "help detail", ArgumentParser.ArgumentConditions.Help);
+        Assert.ThrowsExactly<ArgumentNullException>(() => parser.Describe(null, new[] { "-h", "-?" }, "help", "help detail", ArgumentParser.ArgumentConditions.Help));
     }
 
     [TestMethod]
-    [ExpectedException(typeof(ArgumentNullException))]
     public void KeyIsRequired2()
     {
         var parser = new ArgumentParser();
-        parser.Describe(string.Empty, new[] { "-h", "-?" }, "help", "help detail", ArgumentParser.ArgumentConditions.Help);
+        Assert.ThrowsExactly<ArgumentNullException>(() => parser.Describe(string.Empty, new[] { "-h", "-?" }, "help", "help detail", ArgumentParser.ArgumentConditions.Help));
     }
 
     [TestMethod]
-    [ExpectedException(typeof(ArgumentException))]
     public void SwitchesRequired()
     {
         var parser = new ArgumentParser();
-        parser.Describe("HELP", Array.Empty<string>(), "help", "help detail", ArgumentParser.ArgumentConditions.Help);
-
-        var errors = parser.ParseArgs(Array.Empty<string>(), out var values);
+        Assert.ThrowsExactly<ArgumentException>(() => parser.Describe("HELP", Array.Empty<string>(), "help", "help detail", ArgumentParser.ArgumentConditions.Help));
     }
 
     [TestMethod]
-    [ExpectedException(typeof(ArgumentException))]
     public void HelpTextRequired1()
     {
         var parser = new ArgumentParser();
-        parser.Describe("HELP", new[] { "-h", "-?" }, string.Empty, "help detail", ArgumentParser.ArgumentConditions.Help);
+        Assert.ThrowsExactly<ArgumentException>(() => parser.Describe("HELP", new[] { "-h", "-?" }, string.Empty, "help detail", ArgumentParser.ArgumentConditions.Help));
     }
 
     [TestMethod]
-    [ExpectedException(typeof(ArgumentException))]
     public void HelpTextRequired2()
     {
         var parser = new ArgumentParser();
-        parser.Describe("HELP", new[] { "-h", "-?" }, "help", string.Empty, ArgumentParser.ArgumentConditions.Help);
+        Assert.ThrowsExactly<ArgumentException>(() => parser.Describe("HELP", new[] { "-h", "-?" }, "help", string.Empty, ArgumentParser.ArgumentConditions.Help));
     }
 
     [TestMethod]
-    [ExpectedException(typeof(InvalidOperationException))]
     public void DependencyRequired1()
     {
         var parser = new ArgumentParser();
-        parser.Describe("HELP", new[] { "-h", "-?" }, "help", "help detail", ArgumentParser.ArgumentConditions.Help, new string[] { "DEPENDS" });
+        Assert.ThrowsExactly<InvalidOperationException>(() => parser.Describe("HELP", new[] { "-h", "-?" }, "help", "help detail", ArgumentParser.ArgumentConditions.Help, new string[] { "DEPENDS" }));
     }
 
     [TestMethod]
-    [ExpectedException(typeof(InvalidOperationException))]
     public void DependencyRequired2()
     {
         var parser = new ArgumentParser();
-        parser.Describe("HELP", new[] { "-h", "-?" }, "help", "help detail", ArgumentParser.ArgumentConditions.Help, new string[] { "DEPENDS" });
-        parser.Describe("DEPENDS", new[] { "-o" }, "other", "other detail", ArgumentParser.ArgumentConditions.Required);
+        Assert.ThrowsExactly<InvalidOperationException>(() => parser.Describe("HELP", new[] { "-h", "-?" }, "help", "help detail", ArgumentParser.ArgumentConditions.Help, new string[] { "DEPENDS" }));
+        //Assert.ThrowsExactly<InvalidOperationException>(() => parser.Describe("DEPENDS", new[] { "-o" }, "other", "other detail", ArgumentParser.ArgumentConditions.Required));
     }
 
     [TestMethod]
@@ -146,7 +137,7 @@ public class ArgumentParserTests
             var errors = parser.ParseArgs(new[] { "-i", "42" }, out var values);
             Assert.AreEqual(0, errors.Count(), "2");
             Assert.IsTrue(values.ContainsKey("INT"), "2");
-            Assert.AreEqual(values.GetInt("INT"), 42, "2");
+            Assert.AreEqual(42, values.GetInt("INT"), "2");
         }
         // Test 3
         {
@@ -184,14 +175,14 @@ public class ArgumentParserTests
             var errors = parser.ParseArgs(new[] { "-r", "42" }, out var values);
             Assert.AreEqual(0, errors.Count(), "2");
             Assert.IsTrue(values.ContainsKey("REAL"), "2");
-            Assert.AreEqual(values.GetReal("REAL"), 42.0, "2");
+            Assert.AreEqual(42.0, values.GetReal("REAL"), "2");
         }
         // Test 3
         {
             var errors = parser.ParseArgs(new[] { "-r", "6.9" }, out var values);
             Assert.AreEqual(0, errors.Count(), "3");
             Assert.IsTrue(values.ContainsKey("REAL"), "3");
-            Assert.AreEqual(values.GetReal("REAL"), 6.9, "3");
+            Assert.AreEqual(6.9, values.GetReal("REAL"), "3");
         }
         // Test 4
         {
@@ -259,7 +250,7 @@ public class ArgumentParserTests
             var errors = parser.ParseArgs(new[] { "-o", "A" }, out var values);
             Assert.AreEqual(0, errors.Count(), "2");
             Assert.IsTrue(values.ContainsKey("OPT"), "A");
-            Assert.AreEqual(values["OPT"], "A");
+            Assert.AreEqual("A", values["OPT"]);
         }
         // Test 3
         {
