@@ -13,6 +13,7 @@ namespace MailboxBackup
         private readonly Dictionary<string, ArgumentDescription> argumentDescriptions;
         private readonly ConflictingModel conflictingArguments;
         private readonly IFileSystem fileSystem;
+        private readonly IEnvironment environment;
 
         class ConflictingModel
         {
@@ -77,7 +78,8 @@ namespace MailboxBackup
             ExistingFile = ExistingDir << 1,
             Help = ExistingFile << 1,
             ArgsFileSource = Help << 1,
-            Options = ArgsFileSource << 1
+            Options = ArgsFileSource << 1,
+            ArgsEnvSource = Options << 1
         }
 
         [Flags]
@@ -96,8 +98,8 @@ namespace MailboxBackup
             ExistingFile = _ArgumentConditions.ExistingFile,
             Help = _ArgumentConditions.Help | IsFlag,
             ArgsFileSource = _ArgumentConditions.ArgsFileSource | ExistingFile | TypeString,
-            Options = _ArgumentConditions.Options | TypeString
-
+            Options = _ArgumentConditions.Options | TypeString,
+            ArgsEnvSource = _ArgumentConditions.ArgsEnvSource | IsFlag
         }
 
         public readonly struct ArgumentKey
@@ -166,15 +168,16 @@ namespace MailboxBackup
             public IEnumerable<string> Options { get; }
         }
 
-        internal ArgumentParser(IFileSystem fileSystem)
+        internal ArgumentParser(IFileSystem fileSystem, IEnvironment environment)
         {
             this.fileSystem = fileSystem;
+            this.environment = environment;
             this.argumentDescriptions = new Dictionary<string, ArgumentDescription>();
             this.conflictingArguments = new ConflictingModel();
         }
 
         public ArgumentParser()
-            : this(new FileSystem())
+            : this(new FileSystem(), new Environment())
         {
         }
 
@@ -220,6 +223,7 @@ namespace MailboxBackup
             var errors = new List<ValidationError>();
             var values = new Dictionary<string, string>();
             var argQueue = new SpecialQueue<string>(args);
+            var useEnv = false;
 
             while (argQueue.Count != 0)
             {
@@ -258,6 +262,11 @@ namespace MailboxBackup
                     var argValue = !booleanValue.HasValue || booleanValue.Value;
 
                     result.Add(argumentDescription.Key, argValue);
+                    
+                    if (conditions.HasFlag(_ArgumentConditions.ArgsEnvSource))
+                    {
+                        useEnv = true;
+                    }
                     continue;
                 }
 
@@ -379,7 +388,10 @@ namespace MailboxBackup
                     continue;
                 }
 
-                var value = argumentDescription.Value.DefaultValue;
+                var value = (useEnv)
+                    ? environment.GetVariable(argumentDescription.Key, argumentDescription.Value.DefaultValue)
+                    : argumentDescription.Value.DefaultValue;
+
                 if (string.IsNullOrEmpty(value))
                 {
                     if (conditions.HasFlag(_ArgumentConditions.IsFlag))
@@ -482,7 +494,7 @@ namespace MailboxBackup
                     : string.Empty;
 
                 var conflictsWithList = new StringBuilder();
-                foreach (var key in item.Value.DependsOn)
+                foreach (var key in item.Value.ConflictsWith)
                 {
                     if (conflictsWithList.Length != 0)
                         conflictsWithList.Append(' ');

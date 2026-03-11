@@ -21,6 +21,7 @@ namespace MailboxBackup
             var parser = new ArgumentParser();
             parser.Describe("HELP", new[] { "-h", "-?", "--help" }, "Help", "Display this help", ArgumentConditions.Help);
             parser.Describe("CONFIG", new[] { "-c", "--config" }, "Config file", "Configuration file\nLoads configuration file when encountered and inserts arguments into the queue. Subsequent arguments will override previous values.", ArgumentConditions.ArgsFileSource);
+            parser.Describe("USE_ENV", new[] { "-e", "--use-env" }, "Use environment", "Assigns environment variables based on the configuration keys", ArgumentConditions.ArgsEnvSource);
 
             // Organisation/filter options
             parser.Describe("OUTPUTDIR", new[] { "-o", "--outdir" }, "Output", "Output directory", ArgumentConditions.TypeString | ArgumentConditions.Required);

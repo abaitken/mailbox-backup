@@ -23,29 +23,16 @@ Mailbox Backup
                            (Other forms: --config)
                            Configuration key: CONFIG
 
- -u TEXT                   Account username
-                           (Other forms: --username)
-                           Configuration key: USER
-
- -p TEXT                   Account password
-                           Depends on -u
-                           (Other forms: --password)
-                           Configuration key: PASS
-
- -s TEXT                   Server address
-                           (Other forms: --server)
-                           Configuration key: SERVER
-
- --port ###                (Optional) Server port
-                           Default value: 993
-                           Configuration key: SERVER_PORT
+ -e                        (Optional) Assigns environment variables based on the configuration keys
+                           (Other forms: --use-env)
+                           Configuration key: USE_ENV
 
  -o TEXT                   Output directory
                            (Other forms: --outdir)
                            Configuration key: OUTPUTDIR
 
  -if TEXT                  (Optional) Include folder regex
-                           When supplied, only remote folder names matching the pattern will be downloaded. (Otherwise
+                           When supplied, only remote folder names matching the pattern will be downloaded. (Otherwise 
                            all folders will be downloaded)
                            Configuration key: FOLDER_INC
 
@@ -56,17 +43,8 @@ Mailbox Backup
  --nodl                    (Optional) Do not download
                            Configuration key: DOWNLOAD_NO
 
- --tlsmode OPTION          (Optional) TLS Options
-                           Default value: SslOnConnect
-                           Options: None Auto SslOnConnect StartTls StartTlsWhenAvailable
-                           Configuration key: TLSMODE
-
  --remotemove              (Optional) Move and organise messages remotely on the server
                            Configuration key: REMOTE_MOVE
-
- -il TEXT                  (Optional) IMAP log
-                           (Other forms: --imaplog)
-                           Configuration key: IMAP_LOG
 
  --remotehome TEXT         (Optional) Remote home path for organised file structure
                            Configuration key: REMOTE_HOME
@@ -79,6 +57,41 @@ Mailbox Backup
  --filterage ###           (Optional) Filter e-mails older than provided age (in days)
                            Default value: 1
                            Configuration key: FILTER_AGE
+
+ --use-imap                (Optional) Use IMAP client
+                           Configuration key: CLIENT_IMAP
+
+ -u TEXT                   (Optional) Account username
+                           Depends on --use-imap
+                           (Other forms: --username)
+                           Configuration key: USER
+
+ -p TEXT                   (Optional) Account password
+                           Depends on --use-imap -u
+                           (Other forms: --password)
+                           Configuration key: PASS
+
+ -s TEXT                   (Optional) Server address
+                           Depends on --use-imap
+                           (Other forms: --server)
+                           Configuration key: SERVER
+
+ --port ###                (Optional) Server port
+                           Depends on --use-imap
+                           Default value: 993
+                           Configuration key: SERVER_PORT
+
+ --tlsmode OPTION          (Optional) TLS Options
+                           Depends on --use-imap
+                           Default value: SslOnConnect
+                           Options: None Auto SslOnConnect StartTls StartTlsWhenAvailable
+                           Configuration key: TLSMODE
+
+ -il TEXT                  (Optional) IMAP log
+                           Depends on --use-imap
+                           (Other forms: --imaplog)
+                           Configuration key: IMAP_LOG
+
 ```
 
 ## Example configuration
@@ -94,3 +107,13 @@ Use the configuration key values from above as the property names for a JSON obj
     "OUTPUTDIR": "path\\to\\output\\directory"
 }
 ```
+## Example environment variable usage
+
+After defining ```-e``` on the command line, undefined values will be sourced from the environment.
+
+```
+SET PASSWORD=supersecret
+MailboxBackup.exe -e -u myuser -s imap.server.wan
+```
+
+The ```-p``` password argument will be sourced from the environment.
