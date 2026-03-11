@@ -1,6 +1,4 @@
-using MailKit;
-using MailKit.Net.Imap;
-using System;
+using MailboxBackup.Clients;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -11,16 +9,14 @@ namespace MailboxBackup
 {
     class RemoteFolderView
     {
-        public static RemoteFolderView Build(Logger logger, ImapClient client, Regex includeFolderFilter, Regex excludeFolderFilter)
+        public static RemoteFolderView Build(Logger logger, IRemoteEndpoint client, Regex includeFolderFilter, Regex excludeFolderFilter)
         {
-            var folders = (from FolderNamespace ns in client.PersonalNamespaces
-                           from folder in client.GetFolders(ns)
-                           select folder).ToList();
+            var folders = client.GetAllFolders();
             
-            var toplevel = client.GetFolder(client.PersonalNamespaces[0]);
+            var toplevel = client.RootFolder;
 
             logger.WriteLine($"Discovering...");
-            var selectedFolders = new List<IMailFolder>();
+            var selectedFolders = new List<IRemoteFolder>();
 
             foreach (var folder in folders)
             {
@@ -66,29 +62,29 @@ namespace MailboxBackup
             return pathName;
         }
 
-        private readonly IMailFolder topLevel;
-        private readonly List<IMailFolder> allFolders;
-        private readonly List<IMailFolder> selectedFolders;
+        private readonly IRemoteFolder topLevel;
+        private readonly IList<IRemoteFolder> allFolders;
+        private readonly List<IRemoteFolder> selectedFolders;
 
-        public RemoteFolderView(IMailFolder topLevel, List<IMailFolder> allFolders, List<IMailFolder> selectedFolders)
+        public RemoteFolderView(IRemoteFolder topLevel, IList<IRemoteFolder> allFolders, List<IRemoteFolder> selectedFolders)
         {
             this.topLevel = topLevel;
             this.allFolders = allFolders;
             this.selectedFolders = selectedFolders;
         }
 
-        public IReadOnlyCollection<IMailFolder> Folders
+        public IReadOnlyCollection<IRemoteFolder> Folders
         {
             get => selectedFolders;
         }
 
-        public IMailFolder Find(string remotePath)
+        public IRemoteFolder Find(string remotePath)
         {
             var result = allFolders.FirstOrDefault(o => o.FullName.Equals(remotePath));
             return result;
         }
 
-        public IMailFolder Create(string remotePath)
+        public IRemoteFolder Create(string remotePath)
         {
             var folders = remotePath.Split(PathSeperator);
             var parent = topLevel;
@@ -98,7 +94,7 @@ namespace MailboxBackup
 
                 if(nextLevel == null)
                 {
-                    nextLevel = parent.Create(item, true);
+                    nextLevel = parent.Create(item);
                     allFolders.Add(nextLevel);
                 }
 

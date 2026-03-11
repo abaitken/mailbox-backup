@@ -1,14 +1,12 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
-using MailKit;
-using MimeKit;
+using MailboxBackup.Clients;
 
 namespace MailboxBackup
 {
     abstract class LocalOrganisationStrategy
     {
-        public abstract string Apply(MimeMessage message, IMailFolder folder);
+        public abstract string Apply(IMailItem message, IRemoteFolder folder);
 
         public static LocalOrganisationStrategy Create(string strategyName, string outputDir)
         {

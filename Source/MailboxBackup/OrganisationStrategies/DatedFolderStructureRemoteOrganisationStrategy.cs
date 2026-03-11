@@ -1,5 +1,4 @@
-using MailKit;
-using MimeKit;
+using MailboxBackup.Clients;
 
 namespace MailboxBackup
 {
@@ -12,7 +11,7 @@ namespace MailboxBackup
             this.remoteHome = remoteHome;
         }
 
-        public override string Apply(MimeMessage message, IMailFolder currentFolder)
+        public override string Apply(IMailItem message, IRemoteFolder currentFolder)
         {
             var messageYear = message.Date.Year.ToString();
             var pathBase = RemoteFolderView.Combine(remoteHome, messageYear);

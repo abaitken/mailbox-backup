@@ -1,5 +1,4 @@
-﻿using MailKit;
-using MimeKit;
+﻿using MailboxBackup.Clients;
 using System.IO;
 
 namespace MailboxBackup
@@ -13,7 +12,7 @@ namespace MailboxBackup
             _outputFolder = outputFolder;
         }
 
-        public override string Apply(MimeMessage message, IMailFolder folder)
+        public override string Apply(IMailItem message, IRemoteFolder folder)
         {
             var messageYear = message.Date.Year.ToString();
             var pathName  = RemoteFolderView.ConvertToFileSystemPath(folder.FullName);

@@ -1,10 +1,9 @@
-using MailKit;
-using MimeKit;
+using MailboxBackup.Clients;
 
 namespace MailboxBackup
 {
     abstract class RemoteOrganisationStrategy
     {
-        public abstract string Apply(MimeMessage message, IMailFolder currentFolder);
+        public abstract string Apply(IMailItem message, IRemoteFolder currentFolder);
     }
 }

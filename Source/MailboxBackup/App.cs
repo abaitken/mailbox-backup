@@ -1,6 +1,4 @@
-﻿using MailKit;
-using MailKit.Net.Imap;
-using MailKit.Search;
+﻿using MailboxBackup.Clients;
 using System;
 using System.IO;
 using System.Linq;
@@ -56,16 +54,10 @@ namespace MailboxBackup
                 return ExitCodes.OK;
             }
 
-            var username = argumentValues["USER"];
-            var password = argumentValues["PASS"];
-            var server = argumentValues["SERVER"];
-            var port = argumentValues.GetInt("SERVER_PORT");
             var output = argumentValues["OUTPUTDIR"];
             var download = !argumentValues.GetBool("DOWNLOAD_NO");
-            var tlsOption = SecureSocketOptionArgumentHelper.ToSecureSocketOptions(argumentValues["TLSMODE"]);
             var remoteMove = argumentValues.GetBool("REMOTE_MOVE");
             var remoteHome = argumentValues.GetString("REMOTE_HOME", string.Empty);
-            var imaplog = argumentValues.GetString("IMAP_LOG", null);
             var localOrgStrategyName = argumentValues["LOCALORGSTRAT"];
             var filterAge = argumentValues.GetInt("FILTER_AGE");
 
@@ -84,13 +76,7 @@ namespace MailboxBackup
 
             MailItemCondition messageCondition = new MessageDateAge(filterAge, DateTime.Now);
 
-            using var client = imaplog == null 
-                ? new ImapClient()
-                : new ImapClient(new ProtocolLogger(imaplog));
-                
-            client.Connect(server, port, tlsOption);
-            client.Authenticate(username, password);
-            client.Inbox.Open(FolderAccess.ReadOnly);
+            using var client = new EndpointFactory().Create(argumentValues);
 
             var folderView = RemoteFolderView.Build(defaultLogger, client, includeFolderFilter, excludeFolderFilter);
 
@@ -102,17 +88,14 @@ namespace MailboxBackup
             {
                 var folderProgressText = folderCounter.Next();
 
-                folder.Open(FolderAccess.ReadOnly);
-                var uids = folder.Search(SearchQuery.All);
+                var mailItems = folder.GetItems();
 
-                defaultLogger.WriteLine($"{actionText} {uids.Count} items from folder '{folder.FullName}' ({folderProgressText})");
+                defaultLogger.WriteLine($"{actionText} {mailItems.Count} items from folder '{folder.FullName}' ({folderProgressText})");
                 var progress = new ConsoleProgressDisplay();
-                progress.Begin(uids.Count);
-                foreach (var uid in uids)
+                progress.Begin(mailItems.Count);
+                foreach (var message in mailItems)
                 {
                     progress.Update();
-
-                    var message = folder.GetMessage(uid);
 
                     if(!messageCondition.IsValidItem(message))
                         continue;
@@ -124,9 +107,7 @@ namespace MailboxBackup
                         if(target == null)
                             target = folderView.Create(remotePath);
 
-                        folder.Open(FolderAccess.ReadWrite);
-                        folder.MoveTo(uid, target);
-                        //folder.Close();
+                        message.MoveTo(target);
                     }
 
                     if (download)
@@ -135,11 +116,11 @@ namespace MailboxBackup
                         if (!fileSystem.DirectoryExists(destinationFolder))
                             fileSystem.CreateDirectory(destinationFolder);
 
-                        var filename = filenamingStrategy.Apply(uid, message);
+                        var filename = filenamingStrategy.Apply(message);
                         var destination = Path.Combine(destinationFolder, filename);
 
                         if (!fileSystem.FileExists(destination))
-                            message.WriteTo(destination);
+                            message.WriteToDisk(destination);
                     }
                 }
                 progress.End();
@@ -147,7 +128,7 @@ namespace MailboxBackup
             }
 
 
-            client.Disconnect(true);
+            client.Disconnect();
             return ExitCodes.OK;
         }
 

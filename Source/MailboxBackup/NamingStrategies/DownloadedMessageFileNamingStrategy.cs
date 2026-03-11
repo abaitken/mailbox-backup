@@ -1,10 +1,9 @@
-﻿using MailKit;
-using MimeKit;
+﻿using MailboxBackup.Clients;
 
 namespace MailboxBackup
 {
     abstract class DownloadedMessageFileNamingStrategy
     {
-        public abstract string Apply(UniqueId uid, MimeMessage message);
+        public abstract string Apply(IMailItem message);
     }
 }

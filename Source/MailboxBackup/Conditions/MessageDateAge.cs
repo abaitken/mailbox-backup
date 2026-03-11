@@ -1,4 +1,5 @@
 using System;
+using MailboxBackup.Clients;
 using MimeKit;
 
 namespace MailboxBackup
@@ -12,7 +13,7 @@ namespace MailboxBackup
             this.before = now.Subtract(TimeSpan.FromDays(ageDays));
         }
 
-        public override bool IsValidItem(IMimeMessage message)
+        public override bool IsValidItem(IMailItem message)
         {
             return message.Date <= before;
         }

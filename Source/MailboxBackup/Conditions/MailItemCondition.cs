@@ -1,9 +1,9 @@
-using MimeKit;
+using MailboxBackup.Clients;
 
 namespace MailboxBackup
 {
     abstract class MailItemCondition
     {
-        public abstract bool IsValidItem(IMimeMessage message);
+        public abstract bool IsValidItem(IMailItem message);
     }
 }
