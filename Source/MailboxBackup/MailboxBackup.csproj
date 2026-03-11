@@ -6,6 +6,7 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="MailKit" Version="4.15.1" />
+    <PackageReference Include="Microsoft.Graph" Version="5.103.0" />
     <PackageReference Include="MimeKit" Version="4.15.1" />
     <PackageReference Include="Portable.BouncyCastle" Version="1.9.0" />
     <PackageReference Include="System.Buffers" Version="4.6.1" />

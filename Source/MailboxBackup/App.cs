@@ -22,20 +22,24 @@ namespace MailboxBackup
             parser.Describe("HELP", new[] { "-h", "-?", "--help" }, "Help", "Display this help", ArgumentConditions.Help);
             parser.Describe("CONFIG", new[] { "-c", "--config" }, "Config file", "Configuration file\nLoads configuration file when encountered and inserts arguments into the queue. Subsequent arguments will override previous values.", ArgumentConditions.ArgsFileSource);
 
-            parser.Describe("USER", new[] { "-u", "--username" }, "Username", "Account username", ArgumentConditions.TypeString | ArgumentConditions.Required);
-            parser.Describe("PASS", new[] { "-p", "--password" }, "Password", "Account password", ArgumentConditions.TypeString | ArgumentConditions.Required, new[] { "USER" });
-            parser.Describe("SERVER", new[] { "-s", "--server" }, "Server", "Server address", ArgumentConditions.TypeString | ArgumentConditions.Required);
-            parser.Describe("SERVER_PORT", new[] { "--port" }, "Server port", "Server port", ArgumentConditions.TypeInteger, null, 993.ToString());
+            // Organisation/filter options
             parser.Describe("OUTPUTDIR", new[] { "-o", "--outdir" }, "Output", "Output directory", ArgumentConditions.TypeString | ArgumentConditions.Required);
             parser.Describe("FOLDER_INC", new[] { "-if" }, "Include pattern", "Include folder regex\nWhen supplied, only remote folder names matching the pattern will be downloaded. (Otherwise all folders will be downloaded)", ArgumentConditions.TypeString);
             parser.Describe("FOLDER_EXC", new[] { "-xf" }, "Exclude pattern", "Exclude folder regex\nWhen supplied, remote folders matching the pattern will not be downloaded", ArgumentConditions.TypeString);
             parser.Describe("DOWNLOAD_NO", new[] { "--nodl" }, "No download", "Do not download", ArgumentConditions.IsFlag);
-            parser.Describe("TLSMODE", new[] { "--tlsmode" }, "TLS Options", "TLS Options", ArgumentConditions.Options, null, SecureSocketOptionArgumentHelper.DefaultValue, SecureSocketOptionArgumentHelper.Values);
             parser.Describe("REMOTE_MOVE", new[] { "--remotemove" }, "Organise remote mail", "Move and organise messages remotely on the server", ArgumentConditions.IsFlag);
-            parser.Describe("IMAP_LOG", new[] { "-il", "--imaplog" }, "IMAP log", "IMAP log", ArgumentConditions.TypeString);
             parser.Describe("REMOTE_HOME", new[] { "--remotehome" }, "Remote home", "Remote home path for organised file structure", ArgumentConditions.TypeString);
-            parser.Describe("LOCALORGSTRAT", new[] { "--localorgstrat" }, "Local org strategy", "Local downloaded file organisation strategy", ArgumentConditions.Options, null, LocalOrganisationStrategy.Strategies.First(), LocalOrganisationStrategy.Strategies);
-            parser.Describe("FILTER_AGE", new[] { "--filterage" }, "Filter e-mail age", "Filter e-mails older than provided age (in days)", ArgumentConditions.TypeInteger, null, "1");
+            parser.Describe("LOCALORGSTRAT", new[] { "--localorgstrat" }, "Local org strategy", "Local downloaded file organisation strategy", ArgumentConditions.Options, null, null, LocalOrganisationStrategy.Strategies.First(), LocalOrganisationStrategy.Strategies);
+            parser.Describe("FILTER_AGE", new[] { "--filterage" }, "Filter e-mail age", "Filter e-mails older than provided age (in days)", ArgumentConditions.TypeInteger, null, null, "1");
+
+            // IMAP Client options
+            var ARG_CLIENT_IMAP = parser.Describe("CLIENT_IMAP", new[] { "--use-imap" }, "IMAP Client", "Use IMAP client", ArgumentConditions.IsFlag);
+            var ARG_USER = parser.Describe("USER", new[] { "-u", "--username" }, "Username", "Account username", ArgumentConditions.TypeString, new[] { ARG_CLIENT_IMAP });
+            parser.Describe("PASS", new[] { "-p", "--password" }, "Password", "Account password", ArgumentConditions.TypeString, new[] { ARG_CLIENT_IMAP, ARG_USER });
+            parser.Describe("SERVER", new[] { "-s", "--server" }, "Server", "Server address", ArgumentConditions.TypeString, new[] { ARG_CLIENT_IMAP });
+            parser.Describe("SERVER_PORT", new[] { "--port" }, "Server port", "Server port", ArgumentConditions.TypeInteger, new[] { ARG_CLIENT_IMAP }, null, 993.ToString());
+            parser.Describe("TLSMODE", new[] { "--tlsmode" }, "TLS Options", "TLS Options", ArgumentConditions.Options, new[] { ARG_CLIENT_IMAP }, null, SecureSocketOptionArgumentHelper.DefaultValue, SecureSocketOptionArgumentHelper.Values);
+            parser.Describe("IMAP_LOG", new[] { "-il", "--imaplog" }, "IMAP log", "IMAP log", ArgumentConditions.TypeString, new[] { ARG_CLIENT_IMAP });
 
             var argumentErrors = parser.ParseArgs(args, out var argumentValues);
 

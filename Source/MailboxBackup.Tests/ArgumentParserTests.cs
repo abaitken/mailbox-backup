@@ -1,5 +1,6 @@
 namespace MailboxBackup.Tests;
 using MailboxBackup;
+using static MailboxBackup.ArgumentParser;
 
 [TestClass]
 public class ArgumentParserTests
@@ -43,15 +44,14 @@ public class ArgumentParserTests
     public void DependencyRequired1()
     {
         var parser = new ArgumentParser();
-        Assert.ThrowsExactly<InvalidOperationException>(() => parser.Describe("HELP", new[] { "-h", "-?" }, "help", "help detail", ArgumentParser.ArgumentConditions.Help, new string[] { "DEPENDS" }));
+        Assert.ThrowsExactly<InvalidOperationException>(() => parser.Describe("HELP", new[] { "-h", "-?" }, "help", "help detail", ArgumentParser.ArgumentConditions.Help, new [] { new ArgumentKey("DEPENDS") }));
     }
 
     [TestMethod]
     public void DependencyRequired2()
     {
         var parser = new ArgumentParser();
-        Assert.ThrowsExactly<InvalidOperationException>(() => parser.Describe("HELP", new[] { "-h", "-?" }, "help", "help detail", ArgumentParser.ArgumentConditions.Help, new string[] { "DEPENDS" }));
-        //Assert.ThrowsExactly<InvalidOperationException>(() => parser.Describe("DEPENDS", new[] { "-o" }, "other", "other detail", ArgumentParser.ArgumentConditions.Required));
+        Assert.ThrowsExactly<InvalidOperationException>(() => parser.Describe("HELP", new[] { "-h", "-?" }, "help", "help detail", ArgumentParser.ArgumentConditions.Help, new [] { new ArgumentKey("DEPENDS") }));
     }
 
     [TestMethod]
@@ -59,7 +59,7 @@ public class ArgumentParserTests
     {
         var parser = new ArgumentParser();
         parser.Describe("DEPENDS", new[] { "-o" }, "other", "other detail", ArgumentParser.ArgumentConditions.Required);
-        parser.Describe("HELP", new[] { "-h", "-?" }, "help", "help detail", ArgumentParser.ArgumentConditions.Help, new string[] { "DEPENDS" });
+        parser.Describe("HELP", new[] { "-h", "-?" }, "help", "help detail", ArgumentParser.ArgumentConditions.Help, new [] { new ArgumentKey("DEPENDS") });
     }
 
     [TestMethod]
@@ -67,7 +67,7 @@ public class ArgumentParserTests
     {
         var parser = new ArgumentParser();
         parser.Describe("DEPENDS", new[] { "-o" }, "other", "other detail", ArgumentParser.ArgumentConditions.Optional);
-        parser.Describe("HELP", new[] { "-h", "-?" }, "help", "help detail", ArgumentParser.ArgumentConditions.Help, new string[] { "DEPENDS" });
+        parser.Describe("HELP", new[] { "-h", "-?" }, "help", "help detail", ArgumentParser.ArgumentConditions.Help, new [] { new ArgumentKey("DEPENDS") });
 
         var errors = parser.ParseArgs(new[] { "-h" }, out var values);
         Assert.AreEqual(1, errors.Count());
@@ -236,7 +236,7 @@ public class ArgumentParserTests
     public void OptionsTest()
     {
         var parser = new ArgumentParser();
-        parser.Describe("OPT", new[] { "-o" }, "option", "option detail", ArgumentParser.ArgumentConditions.Options, null, null, new[] { "A", "B", "C" });
+        parser.Describe("OPT", new[] { "-o" }, "option", "option detail", ArgumentParser.ArgumentConditions.Options, null, null, null, new[] { "A", "B", "C" });
 
         // Test 1
         {
@@ -265,6 +265,41 @@ public class ArgumentParserTests
             var errors = parser.ParseArgs(new string[0], out var values);
             Assert.AreEqual(0, errors.Count(), "4");
             Assert.IsFalse(values.ContainsKey("OPT"), "4");
+        }
+    }
+
+    [TestMethod]
+    public void ConflictingTest()
+    {
+        var parser = new ArgumentParser();
+        var ARG_THIS = parser.Describe("THIS", new[] { "--this" }, "This", "This detail", ArgumentParser.ArgumentConditions.IsFlag, null, new[] { new ArgumentKey("THAT") });
+        var ARG_THAT = parser.Describe("THAT", new[] { "--that" }, "That", "That detail", ArgumentParser.ArgumentConditions.IsFlag, null, new[] { ARG_THIS });
+
+        // Test 1
+        {
+            var errors = parser.ParseArgs(new[] { "--this" }, out var values);
+            Assert.AreEqual(0, errors.Count(), "1");
+            Assert.IsTrue(values.ContainsKey("THIS"), "1");
+        }
+        // Test 2
+        {
+            var errors = parser.ParseArgs(new[] { "--that" }, out var values);
+            Assert.AreEqual(0, errors.Count(), "2");
+            Assert.IsTrue(values.ContainsKey("THAT"), "2");
+        }
+        // Test 3
+        {
+            var errors = parser.ParseArgs(new[] { "--this" , "--that" }, out var values);
+            Assert.AreEqual(2, errors.Count(), "3");
+            Assert.AreEqual(ValidationErrorType.ConflictingArgPresent, errors.First().ErrorType, "3");
+            Assert.AreEqual(ValidationErrorType.ConflictingArgPresent, errors.Skip(1).First().ErrorType, "3");
+        }
+        // Test 4
+        {
+            var errors = parser.ParseArgs(new[] { "--that", "--this" }, out var values);
+            Assert.AreEqual(2, errors.Count(), "4");
+            Assert.AreEqual(ValidationErrorType.ConflictingArgPresent, errors.First().ErrorType, "4");
+            Assert.AreEqual(ValidationErrorType.ConflictingArgPresent, errors.Skip(1).First().ErrorType, "4");
         }
     }
 }

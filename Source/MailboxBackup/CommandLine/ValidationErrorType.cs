@@ -7,7 +7,7 @@ namespace MailboxBackup
         FileSystemObjectNotFound,
         RequiredArgMissing,
         NoValue,
-        UnknownOption
-
+        UnknownOption,
+        ConflictingArgPresent
     }
 }

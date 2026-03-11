@@ -10,6 +10,7 @@ namespace MailboxBackup
         private readonly Dictionary<string, int> ints;
         private readonly Dictionary<string, double> reals;
         private readonly Dictionary<string, bool> bools;
+        private readonly List<string> userGiven;
 
         public ArgumentValues()
         {
@@ -18,9 +19,10 @@ namespace MailboxBackup
             this.ints = new Dictionary<string, int>();
             this.reals = new Dictionary<string, double>();
             this.bools = new Dictionary<string, bool>();
+            this.userGiven = new List<string>();
         }
 
-        private void Add<T>(string key, T value, Dictionary<string, T> store)
+        private void Add<T>(string key, T value, Dictionary<string, T> store, bool userGiven)
         {
             if (ContainsKey(key))
             {
@@ -30,31 +32,41 @@ namespace MailboxBackup
 
             keys.Add(key);
             store.Add(key, value);
+
+            if(userGiven)
+            {
+                this.userGiven.Add(key);
+            }
         }
 
-        internal void Add(string key, bool value)
+        internal void Add(string key, bool value, bool userGiven = true)
         {
-            Add(key, value, bools);
+            Add(key, value, bools, userGiven);
         }
 
-        internal void Add(string key, int value)
+        internal void Add(string key, int value, bool userGiven = true)
         {
-            Add(key, value, ints);
+            Add(key, value, ints, userGiven);
         }
 
-        internal void Add(string key, double value)
+        internal void Add(string key, double value, bool userGiven = true)
         {
-            Add(key, value, reals);
+            Add(key, value, reals, userGiven);
         }
 
-        internal void Add(string key, string value)
+        internal void Add(string key, string value, bool userGiven = true)
         {
-            Add(key, value, strings);
+            Add(key, value, strings, userGiven);
         }
 
         internal bool ContainsKey(string key)
         {
             return keys.Contains(key);
+        }
+
+        internal bool UserGiven(string key)
+        {
+            return userGiven.Contains(key);
         }
 
         public string this[string key]
